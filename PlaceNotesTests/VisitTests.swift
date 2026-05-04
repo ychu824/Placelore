@@ -115,6 +115,40 @@ final class VisitTests: XCTestCase {
         XCTAssertNil(visit.medianAccuracyMeters)
     }
 
+    // MARK: - durationString
+
+    func testDurationStringSubHourMinutes() {
+        let v = Visit(
+            arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
+            departureDate: Date(timeIntervalSince1970: 1_700_000_000 + 45 * 60)
+        )
+        XCTAssertEqual(v.durationString, "45m")
+    }
+
+    func testDurationStringExactHours() {
+        let v = Visit(
+            arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
+            departureDate: Date(timeIntervalSince1970: 1_700_000_000 + 60 * 60)
+        )
+        XCTAssertEqual(v.durationString, "1h")
+    }
+
+    func testDurationStringHoursAndMinutes() {
+        let v = Visit(
+            arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
+            departureDate: Date(timeIntervalSince1970: 1_700_000_000 + 75 * 60)
+        )
+        XCTAssertEqual(v.durationString, "1h 15m")
+    }
+
+    func testDurationStringZero() {
+        let v = Visit(
+            arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
+            departureDate: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        XCTAssertEqual(v.durationString, "0m")
+    }
+
     // MARK: - Helpers
 
     private func makeVisit(hour: Int) -> Visit {
