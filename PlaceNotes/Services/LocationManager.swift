@@ -66,6 +66,12 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     private var pendingRawSamples: [PendingRawSample] = []
     private let rawSampleBatchSize = 50
 
+    /// Last sample's identity used to suppress iOS re-deliveries of an unchanged fix.
+    private var lastObservedSample: (lat: Double, lon: Double, accuracy: Double, timestamp: Date)?
+
+    /// Window within which an identical-coord/accuracy sample is treated as a redelivery.
+    private let duplicateSampleWindow: TimeInterval = 30
+
     /// Distance (meters) the user must move before we consider them "left".
     private let dwellRadiusMeters: Double = 80
 
@@ -129,6 +135,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         dwellTimer = nil
         flushRawSamples()
         finalizeDwell()
+        lastObservedSample = nil
         logger.notice("All monitoring stopped")
     }
 
@@ -260,6 +267,21 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         }
 
         userLocation = location.coordinate
+
+        if let last = lastObservedSample,
+           last.lat == location.coordinate.latitude,
+           last.lon == location.coordinate.longitude,
+           last.accuracy == location.horizontalAccuracy,
+           location.timestamp.timeIntervalSince(last.timestamp) < duplicateSampleWindow {
+            logger.debug("Duplicate sample suppressed (Δt=\(location.timestamp.timeIntervalSince(last.timestamp))s)")
+            return
+        }
+        lastObservedSample = (
+            location.coordinate.latitude,
+            location.coordinate.longitude,
+            location.horizontalAccuracy,
+            location.timestamp
+        )
 
         // Step 1: Filter noisy / stale samples
         let isAccurate = location.horizontalAccuracy >= 0 && location.horizontalAccuracy <= maxAcceptableAccuracy

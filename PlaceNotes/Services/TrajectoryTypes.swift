@@ -16,6 +16,7 @@ struct TrajectorySegment {
 struct TrajectoryStats {
     let totalDistanceMeters: Double
     let rawSampleCount: Int
+    let drawnPointCount: Int
     let segmentCount: Int
     let placeCount: Int
 }

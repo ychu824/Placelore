@@ -6,12 +6,10 @@ import SwiftData
 /// feature can be exercised on a fresh simulator without waiting hours for
 /// real CoreLocation fixes. DEBUG builds only.
 ///
-/// All generated samples are marked `filterStatus = "accepted"` so the
-/// trajectory query (which filters to accepted samples) renders the full path.
-/// In real-world use the LocationManager classifies samples with speed > 2 m/s
-/// as "rejected-speed", so on-device data won't include the driving segments —
-/// the seed therefore shows the *intended* feature behavior, which is more
-/// useful for verification than real data would be.
+/// All generated samples are marked `filterStatus = "accepted"`. The trajectory
+/// query renders everything except `rejected-accuracy`, so both seeded and
+/// real-world driving/walking samples (which the LocationManager tags as
+/// `rejected-speed`) appear on the path.
 enum DebugSeed {
 
     @MainActor
