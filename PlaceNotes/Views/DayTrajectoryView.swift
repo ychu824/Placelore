@@ -75,6 +75,7 @@ struct DayTrajectoryView: View {
                             .shadow(radius: 2)
                     }
                     .padding(.trailing, 16)
+                    // 112 = 88 (strip height) + 12 (strip bottom padding) + 12 (gap above strip)
                     .padding(.bottom, dayVisits.isEmpty ? 24 : 112)
                 }
             }
@@ -180,6 +181,7 @@ struct DayTrajectoryView: View {
         self.dayPlaces = placesToday
         self.dayVisits = visitsToday
         self.stats = computedStats
+        self.selectedVisit = nil
         self.cameraPosition = initialCamera(segments: builtSegments, places: placesToday)
     }
 
