@@ -11,6 +11,8 @@ struct DayTrajectoryView: View {
     @State private var dayPlaces: [Place] = []
     @State private var selectedPlace: Place?
     @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var dayVisits: [Visit] = []
+    @State private var selectedVisit: Visit.ID?
 
     private static let navTitleFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -60,6 +62,7 @@ struct DayTrajectoryView: View {
                 HStack {
                     Spacer()
                     Button {
+                        selectedVisit = nil
                         withAnimation {
                             cameraPosition = initialCamera(segments: segments, places: dayPlaces)
                         }
@@ -72,7 +75,20 @@ struct DayTrajectoryView: View {
                             .shadow(radius: 2)
                     }
                     .padding(.trailing, 16)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, dayVisits.isEmpty ? 24 : 112)
+                }
+            }
+
+            if !dayVisits.isEmpty {
+                VStack {
+                    Spacer()
+                    TrajectoryTimelineStrip(
+                        visits: dayVisits,
+                        selectedVisitID: selectedVisit,
+                        onTapVisit: recenterToVisit
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
                 }
             }
 
@@ -145,6 +161,14 @@ struct DayTrajectoryView: View {
             place.visits.contains { $0.arrivalDate >= dayStart && $0.arrivalDate < dayEnd }
         }
 
+        let visitDescriptor = FetchDescriptor<Visit>(
+            predicate: #Predicate {
+                $0.arrivalDate >= dayStart && $0.arrivalDate < dayEnd
+            },
+            sortBy: [SortDescriptor(\.arrivalDate)]
+        )
+        let visitsToday = (try? modelContext.fetch(visitDescriptor)) ?? []
+
         let builtSegments = TrajectoryBuilder.build(samples: samples, day: day)
         let computedStats = TrajectoryBuilder.computeStats(
             segments: builtSegments,
@@ -154,8 +178,21 @@ struct DayTrajectoryView: View {
 
         self.segments = builtSegments
         self.dayPlaces = placesToday
+        self.dayVisits = visitsToday
         self.stats = computedStats
         self.cameraPosition = initialCamera(segments: builtSegments, places: placesToday)
+    }
+
+    private func recenterToVisit(_ visit: Visit) {
+        guard let place = visit.place else { return }
+        selectedVisit = visit.id
+        withAnimation {
+            cameraPosition = .region(MKCoordinateRegion(
+                center: place.coordinate,
+                latitudinalMeters: 200,
+                longitudinalMeters: 200
+            ))
+        }
     }
 
     private func initialCamera(
