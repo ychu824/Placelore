@@ -58,7 +58,6 @@ final class Visit {
         return max(0, Int(end.timeIntervalSince(arrivalDate) / 60))
     }
 
-    /// Human-readable duration. "45m" / "1h" / "1h 15m" / "0m".
     var durationString: String {
         let mins = durationMinutes
         if mins >= 60 {

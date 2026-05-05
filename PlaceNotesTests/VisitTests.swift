@@ -118,35 +118,35 @@ final class VisitTests: XCTestCase {
     // MARK: - durationString
 
     func testDurationStringSubHourMinutes() {
-        let v = Visit(
+        let visit = Visit(
             arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
             departureDate: Date(timeIntervalSince1970: 1_700_000_000 + 45 * 60)
         )
-        XCTAssertEqual(v.durationString, "45m")
+        XCTAssertEqual(visit.durationString, "45m")
     }
 
     func testDurationStringExactHours() {
-        let v = Visit(
+        let visit = Visit(
             arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
             departureDate: Date(timeIntervalSince1970: 1_700_000_000 + 60 * 60)
         )
-        XCTAssertEqual(v.durationString, "1h")
+        XCTAssertEqual(visit.durationString, "1h")
     }
 
     func testDurationStringHoursAndMinutes() {
-        let v = Visit(
+        let visit = Visit(
             arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
             departureDate: Date(timeIntervalSince1970: 1_700_000_000 + 75 * 60)
         )
-        XCTAssertEqual(v.durationString, "1h 15m")
+        XCTAssertEqual(visit.durationString, "1h 15m")
     }
 
     func testDurationStringZero() {
-        let v = Visit(
+        let visit = Visit(
             arrivalDate: Date(timeIntervalSince1970: 1_700_000_000),
             departureDate: Date(timeIntervalSince1970: 1_700_000_000)
         )
-        XCTAssertEqual(v.durationString, "0m")
+        XCTAssertEqual(visit.durationString, "0m")
     }
 
     // MARK: - Helpers
