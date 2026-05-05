@@ -58,6 +58,16 @@ final class Visit {
         return max(0, Int(end.timeIntervalSince(arrivalDate) / 60))
     }
 
+    var durationString: String {
+        let mins = durationMinutes
+        if mins >= 60 {
+            let h = mins / 60
+            let m = mins % 60
+            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
+        }
+        return "\(mins)m"
+    }
+
     var timeOfDay: TimeOfDay {
         let hour = Calendar.current.component(.hour, from: arrivalDate)
         switch hour {

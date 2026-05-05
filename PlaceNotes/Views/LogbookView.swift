@@ -374,16 +374,6 @@ private struct LogbookVisitRow: View {
         return formatter.string(from: visit.arrivalDate)
     }
 
-    private var durationString: String {
-        let mins = visit.durationMinutes
-        if mins >= 60 {
-            let h = mins / 60
-            let m = mins % 60
-            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
-        }
-        return "\(mins)m"
-    }
-
     private var hasPhoto: Bool {
         let start = visit.arrivalDate.addingTimeInterval(-5 * 60)
         let end = (visit.departureDate ?? visit.arrivalDate).addingTimeInterval(5 * 60)
@@ -439,7 +429,7 @@ private struct LogbookVisitRow: View {
                     Text(dateString)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(durationString)
+                    Text(visit.durationString)
                         .font(.caption.bold())
                         .foregroundStyle(Color.accentColor)
                     #if DEBUG
