@@ -66,6 +66,7 @@ private struct TimelineCard: View {
                     .foregroundStyle(.secondary)
             }
             .frame(width: 84, height: 76)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
