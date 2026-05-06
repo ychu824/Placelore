@@ -11,10 +11,21 @@ struct TrajectoryTimelineStrip: View {
         return f
     }()
 
+    private var rows: [VisitRow] {
+        let placed = visits.compactMap { visit -> (Visit, Place)? in
+            guard let place = visit.place else { return nil }
+            return (visit, place)
+        }
+        return placed.enumerated().map { index, pair in
+            let nextArrival = index + 1 < placed.count ? placed[index + 1].0.arrivalDate : nil
+            return VisitRow(visit: pair.0, place: pair.1, nextArrival: nextArrival)
+        }
+    }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 12) {
-                ForEach(visits.compactMap(VisitRow.init), id: \.visit.id) { row in
+                ForEach(rows, id: \.visit.id) { row in
                     TimelineCard(
                         row: row,
                         isSelected: row.visit.id == selectedVisitID
@@ -36,12 +47,7 @@ struct TrajectoryTimelineStrip: View {
 private struct VisitRow {
     let visit: Visit
     let place: Place
-
-    init?(visit: Visit) {
-        guard let place = visit.place else { return nil }
-        self.visit = visit
-        self.place = place
-    }
+    let nextArrival: Date?
 }
 
 private struct TimelineCard: View {
@@ -61,7 +67,7 @@ private struct TimelineCard: View {
                 Text(arrivalString)
                     .font(.caption.bold())
                     .foregroundStyle(.primary)
-                Text(row.visit.durationString)
+                Text(row.visit.effectiveDurationString(cappedAt: row.nextArrival))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

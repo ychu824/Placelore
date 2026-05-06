@@ -320,12 +320,17 @@ private struct MonthSection: View {
 
     var body: some View {
         DisclosureGroup {
-            ForEach(visits) { visit in
+            ForEach(Array(visits.enumerated()), id: \.element.id) { index, visit in
                 if let place = visit.place {
+                    let nextSameDay: Date? = {
+                        guard index > 0 else { return nil }
+                        let next = visits[index - 1]
+                        return Calendar.current.isDate(next.arrivalDate, inSameDayAs: visit.arrivalDate) ? next.arrivalDate : nil
+                    }()
                     NavigationLink {
                         PlaceDetailView(place: place)
                     } label: {
-                        LogbookVisitRow(visit: visit, place: place) {
+                        LogbookVisitRow(visit: visit, place: place, nextSameDayArrival: nextSameDay) {
                             onPickAlternative?(visit)
                         }
                     }
@@ -369,6 +374,7 @@ private struct MonthSection: View {
 private struct LogbookVisitRow: View {
     let visit: Visit
     let place: Place
+    let nextSameDayArrival: Date?
     var onPickAlternative: (() -> Void)?
 
     private var dateString: String {
@@ -432,7 +438,7 @@ private struct LogbookVisitRow: View {
                     Text(dateString)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(visit.durationString)
+                    Text(visit.effectiveDurationString(cappedAt: nextSameDayArrival))
                         .font(.caption.bold())
                         .foregroundStyle(Color.accentColor)
                     #if DEBUG
