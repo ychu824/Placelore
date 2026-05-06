@@ -58,12 +58,33 @@ final class Visit {
     }
 
     var durationMinutes: Int {
-        let end = departureDate ?? Date()
+        effectiveDurationMinutes(cappedAt: nil)
+    }
+
+    /// Pass the next visit's `arrivalDate` as `cap` so stranded past-day visits don't fall back to `Date()`.
+    func effectiveDurationMinutes(cappedAt cap: Date?) -> Int {
+        let end: Date
+        if let departureDate {
+            end = departureDate
+        } else if let cap {
+            end = cap
+        } else if Calendar.current.isDateInToday(arrivalDate) {
+            end = Date()
+        } else {
+            return 0
+        }
         return max(0, Int(end.timeIntervalSince(arrivalDate) / 60))
     }
 
     var durationString: String {
-        let mins = durationMinutes
+        Self.formatDuration(durationMinutes)
+    }
+
+    func effectiveDurationString(cappedAt cap: Date?) -> String {
+        Self.formatDuration(effectiveDurationMinutes(cappedAt: cap))
+    }
+
+    private static func formatDuration(_ mins: Int) -> String {
         if mins >= 60 {
             let h = mins / 60
             let m = mins % 60

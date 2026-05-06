@@ -149,6 +149,39 @@ final class VisitTests: XCTestCase {
         XCTAssertEqual(visit.durationString, "0m")
     }
 
+    // MARK: - Stranded visits (no departureDate, past day)
+
+    func testDurationStrandedPastDayReturnsZero() {
+        let arrival = Calendar.current.date(byAdding: .day, value: -3, to: Date())!
+        let visit = Visit(arrivalDate: arrival, departureDate: nil)
+        XCTAssertEqual(visit.durationMinutes, 0)
+        XCTAssertEqual(visit.durationString, "0m")
+    }
+
+    func testEffectiveDurationUsesCapWhenDepartureMissing() {
+        let arrival = Calendar.current.date(byAdding: .day, value: -3, to: Date())!
+        let cap = arrival.addingTimeInterval(45 * 60)
+        let visit = Visit(arrivalDate: arrival, departureDate: nil)
+        XCTAssertEqual(visit.effectiveDurationMinutes(cappedAt: cap), 45)
+        XCTAssertEqual(visit.effectiveDurationString(cappedAt: cap), "45m")
+    }
+
+    func testEffectiveDurationPrefersDepartureOverCap() {
+        let arrival = Date(timeIntervalSince1970: 1_700_000_000)
+        let departure = arrival.addingTimeInterval(20 * 60)
+        let cap = arrival.addingTimeInterval(60 * 60)
+        let visit = Visit(arrivalDate: arrival, departureDate: departure)
+        XCTAssertEqual(visit.effectiveDurationMinutes(cappedAt: cap), 20)
+    }
+
+    func testEffectiveDurationTodayUsesNowWhenNoCap() {
+        let arrival = Date().addingTimeInterval(-15 * 60)
+        let visit = Visit(arrivalDate: arrival, departureDate: nil)
+        let mins = visit.effectiveDurationMinutes(cappedAt: nil)
+        XCTAssertGreaterThanOrEqual(mins, 14)
+        XCTAssertLessThanOrEqual(mins, 16)
+    }
+
     // MARK: - Helpers
 
     private func makeVisit(hour: Int) -> Visit {
