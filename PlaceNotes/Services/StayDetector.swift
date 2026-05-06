@@ -110,4 +110,34 @@ enum StayDetector {
         let isRecent = abs(timestamp.timeIntervalSinceNow) < maxAge
         return isAccurate && isStationary && isRecent
     }
+
+    // MARK: - Dwell Gap Cross-Check
+
+    /// A CLVisit event observed during a tracking session.
+    struct VisitEvent {
+        let timestamp: Date
+        let coordinate: CLLocationCoordinate2D
+    }
+
+    /// Decide whether the user provably left the dwell area during a gap in
+    /// `didUpdateLocations` callbacks. Used to distinguish "iOS auto-paused
+    /// while user stayed" from "user genuinely left and returned to the same
+    /// area." Returns true only when at least one CLVisit event landed inside
+    /// `(from, to)` at a coordinate farther than `dwellRadiusMeters` from
+    /// `dwellCenter` — strong evidence the user was elsewhere during the gap.
+    static func didUserLeaveDuringGap(
+        visitEvents: [VisitEvent],
+        from: Date,
+        to: Date,
+        dwellCenter: CLLocationCoordinate2D,
+        dwellRadiusMeters: Double
+    ) -> Bool {
+        guard from < to else { return false }
+        let centerLoc = CLLocation(latitude: dwellCenter.latitude, longitude: dwellCenter.longitude)
+        return visitEvents.contains { event in
+            guard event.timestamp > from, event.timestamp < to else { return false }
+            let eventLoc = CLLocation(latitude: event.coordinate.latitude, longitude: event.coordinate.longitude)
+            return eventLoc.distance(from: centerLoc) > dwellRadiusMeters
+        }
+    }
 }

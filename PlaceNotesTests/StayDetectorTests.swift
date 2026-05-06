@@ -256,4 +256,103 @@ final class StayDetectorTests: XCTestCase {
             timestamp: Date()
         ))
     }
+
+    // MARK: - Dwell Gap Cross-Check
+
+    private func makeVisitEvent(at offset: TimeInterval, lat: Double, lon: Double, base: Date = Date(timeIntervalSince1970: 1_700_000_000)) -> StayDetector.VisitEvent {
+        StayDetector.VisitEvent(
+            timestamp: base.addingTimeInterval(offset),
+            coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        )
+    }
+
+    func testGapWithNoVisitEventsReturnsFalse() {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let result = StayDetector.didUserLeaveDuringGap(
+            visitEvents: [],
+            from: base,
+            to: base.addingTimeInterval(3600),
+            dwellCenter: CLLocationCoordinate2D(latitude: 47.63, longitude: -122.14),
+            dwellRadiusMeters: 80
+        )
+        XCTAssertFalse(result)
+    }
+
+    func testGapWithVisitEventInsideRadiusReturnsFalse() {
+        // CLVisit fired at the same place as the dwell — user stayed put,
+        // iOS just paused updates. Should not trigger a reset.
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let events = [makeVisitEvent(at: 1800, lat: 47.6300, lon: -122.1400, base: base)]
+        let result = StayDetector.didUserLeaveDuringGap(
+            visitEvents: events,
+            from: base,
+            to: base.addingTimeInterval(3600),
+            dwellCenter: CLLocationCoordinate2D(latitude: 47.6300, longitude: -122.1400),
+            dwellRadiusMeters: 80
+        )
+        XCTAssertFalse(result)
+    }
+
+    func testGapWithVisitEventOutsideRadiusReturnsTrue() {
+        // CLVisit fired far from the dwell during the gap — clear evidence
+        // the user left and came back.
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let events = [makeVisitEvent(at: 1800, lat: 47.6400, lon: -122.1500, base: base)]
+        let result = StayDetector.didUserLeaveDuringGap(
+            visitEvents: events,
+            from: base,
+            to: base.addingTimeInterval(3600),
+            dwellCenter: CLLocationCoordinate2D(latitude: 47.6300, longitude: -122.1400),
+            dwellRadiusMeters: 80
+        )
+        XCTAssertTrue(result)
+    }
+
+    func testGapIgnoresVisitEventsOutsideTimeWindow() {
+        // A CLVisit before the gap window or after it must not influence
+        // the decision — only events inside (from, to) count.
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let events = [
+            makeVisitEvent(at: -300, lat: 47.6400, lon: -122.1500, base: base),
+            makeVisitEvent(at: 7200, lat: 47.6400, lon: -122.1500, base: base)
+        ]
+        let result = StayDetector.didUserLeaveDuringGap(
+            visitEvents: events,
+            from: base,
+            to: base.addingTimeInterval(3600),
+            dwellCenter: CLLocationCoordinate2D(latitude: 47.6300, longitude: -122.1400),
+            dwellRadiusMeters: 80
+        )
+        XCTAssertFalse(result)
+    }
+
+    func testGapBoundaryEventsAreExclusive() {
+        // Events at exactly `from` or `to` should not count as inside the gap.
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let events = [
+            makeVisitEvent(at: 0, lat: 47.6400, lon: -122.1500, base: base),
+            makeVisitEvent(at: 3600, lat: 47.6400, lon: -122.1500, base: base)
+        ]
+        let result = StayDetector.didUserLeaveDuringGap(
+            visitEvents: events,
+            from: base,
+            to: base.addingTimeInterval(3600),
+            dwellCenter: CLLocationCoordinate2D(latitude: 47.6300, longitude: -122.1400),
+            dwellRadiusMeters: 80
+        )
+        XCTAssertFalse(result)
+    }
+
+    func testGapWithReversedWindowReturnsFalse() {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        let events = [makeVisitEvent(at: 1800, lat: 47.6400, lon: -122.1500, base: base)]
+        let result = StayDetector.didUserLeaveDuringGap(
+            visitEvents: events,
+            from: base.addingTimeInterval(3600),
+            to: base,
+            dwellCenter: CLLocationCoordinate2D(latitude: 47.6300, longitude: -122.1400),
+            dwellRadiusMeters: 80
+        )
+        XCTAssertFalse(result)
+    }
 }

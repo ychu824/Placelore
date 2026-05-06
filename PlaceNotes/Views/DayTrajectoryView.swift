@@ -150,7 +150,7 @@ struct DayTrajectoryView: View {
             predicate: #Predicate {
                 $0.timestamp >= dayStart
                 && $0.timestamp < dayEnd
-                && $0.filterStatus == "accepted"
+                && $0.filterStatus != "rejected-accuracy"
             },
             sortBy: [SortDescriptor(\.timestamp)]
         )

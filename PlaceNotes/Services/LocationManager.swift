@@ -66,6 +66,26 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     private var pendingRawSamples: [PendingRawSample] = []
     private let rawSampleBatchSize = 50
 
+    /// Last sample's identity used to suppress iOS re-deliveries of an unchanged fix.
+    private var lastObservedSample: (lat: Double, lon: Double, accuracy: Double, timestamp: Date)?
+
+    /// Window within which an identical-coord/accuracy sample is treated as a redelivery.
+    private let duplicateSampleWindow: TimeInterval = 30
+
+    /// CLVisit arrival/departure events seen during this tracking session,
+    /// retained so a long gap in `didUpdateLocations` can be cross-checked
+    /// against iOS-detected stays elsewhere.
+    private var observedVisitEvents: [StayDetector.VisitEvent] = []
+
+    /// Time gap between consecutive dwell samples beyond which we cross-check
+    /// CLVisit events to decide whether the user left the dwell area.
+    /// 10 min comfortably tolerates iOS auto-pause during a real stay.
+    private let maxDwellGapSeconds: TimeInterval = 600
+
+    /// Maximum age of CLVisit events kept in memory. Older events can't
+    /// inform any current dwell decision.
+    private let visitEventRetention: TimeInterval = 24 * 3600
+
     /// Distance (meters) the user must move before we consider them "left".
     private let dwellRadiusMeters: Double = 80
 
@@ -129,7 +149,15 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         dwellTimer = nil
         flushRawSamples()
         finalizeDwell()
+        lastObservedSample = nil
+        observedVisitEvents.removeAll()
         logger.notice("All monitoring stopped")
+    }
+
+    private func recordVisitEvent(timestamp: Date, coordinate: CLLocationCoordinate2D) {
+        let cutoff = Date().addingTimeInterval(-visitEventRetention)
+        observedVisitEvents.removeAll { $0.timestamp < cutoff }
+        observedVisitEvents.append(StayDetector.VisitEvent(timestamp: timestamp, coordinate: coordinate))
     }
 
     // MARK: - Dwell Timer
@@ -155,6 +183,21 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         let elapsed = Date().timeIntervalSince(start)
         let threshold = dwellThresholdSeconds
         if elapsed >= threshold {
+            if let last = dwellSamples.last {
+                let tailGap = Date().timeIntervalSince(last.timestamp)
+                if tailGap > maxDwellGapSeconds,
+                   StayDetector.didUserLeaveDuringGap(
+                       visitEvents: observedVisitEvents,
+                       from: last.timestamp,
+                       to: Date(),
+                       dwellCenter: weightedCenter(of: dwellSamples),
+                       dwellRadiusMeters: dwellRadiusMeters
+                   ) {
+                    logger.notice("Dwell timer suppressed — \(Int(tailGap))s tail gap with CLVisit elsewhere; resetting")
+                    finalizeDwell()
+                    return
+                }
+            }
             logger.notice("Dwell threshold reached via timer (\(Int(elapsed))s >= \(Int(threshold))s) — recording visit")
             let cluster = buildCluster(from: dwellSamples, startDate: start)
             recordDwellVisit(cluster: cluster, context: modelContext)
@@ -191,6 +234,11 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         logger.notice("CLVisit received: (\(clVisit.coordinate.latitude), \(clVisit.coordinate.longitude))")
         logger.info("  arrival: \(clVisit.arrivalDate), departure: \(clVisit.departureDate == .distantFuture ? "still here" : "\(clVisit.departureDate)")")
         logger.info("  horizontalAccuracy: \(clVisit.horizontalAccuracy)m")
+
+        recordVisitEvent(timestamp: clVisit.arrivalDate, coordinate: clVisit.coordinate)
+        if clVisit.departureDate != .distantFuture {
+            recordVisitEvent(timestamp: clVisit.departureDate, coordinate: clVisit.coordinate)
+        }
 
         guard clVisit.arrivalDate != .distantPast else {
             logger.warning("CLVisit ignored — arrivalDate is distantPast (unknown arrival)")
@@ -261,6 +309,21 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 
         userLocation = location.coordinate
 
+        if let last = lastObservedSample,
+           last.lat == location.coordinate.latitude,
+           last.lon == location.coordinate.longitude,
+           last.accuracy == location.horizontalAccuracy,
+           location.timestamp.timeIntervalSince(last.timestamp) < duplicateSampleWindow {
+            logger.debug("Duplicate sample suppressed (Δt=\(location.timestamp.timeIntervalSince(last.timestamp))s)")
+            return
+        }
+        lastObservedSample = (
+            location.coordinate.latitude,
+            location.coordinate.longitude,
+            location.horizontalAccuracy,
+            location.timestamp
+        )
+
         // Step 1: Filter noisy / stale samples
         let isAccurate = location.horizontalAccuracy >= 0 && location.horizontalAccuracy <= maxAcceptableAccuracy
         let isStationary = location.speed < 0 || location.speed <= maxStationarySpeed // speed < 0 means unknown
@@ -311,8 +374,23 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             let distance = location.distance(from: centerLocation)
 
             if distance < dwellRadiusMeters {
-                // Still within dwell radius — collect sample if quality is good
                 if isAccurate && isStationary && isRecent {
+                    if let last = dwellSamples.last,
+                       sample.timestamp.timeIntervalSince(last.timestamp) > maxDwellGapSeconds,
+                       StayDetector.didUserLeaveDuringGap(
+                           visitEvents: observedVisitEvents,
+                           from: last.timestamp,
+                           to: sample.timestamp,
+                           dwellCenter: currentCenter,
+                           dwellRadiusMeters: dwellRadiusMeters
+                       ) {
+                        logger.notice("Dwell gap of \(Int(sample.timestamp.timeIntervalSince(last.timestamp)))s corroborated by CLVisit elsewhere — resetting")
+                        finalizeDwell()
+                        dwellSamples = [sample]
+                        dwellStartDate = sample.timestamp
+                        logger.info("New dwell started after gap reset at (\(location.coordinate.latitude), \(location.coordinate.longitude))")
+                        return
+                    }
                     dwellSamples.append(sample)
                     logger.debug("Sample collected (\(self.dwellSamples.count) total), \(Int(distance))m from center")
                 }

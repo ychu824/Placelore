@@ -97,8 +97,10 @@ enum TrajectoryBuilder {
         placeCount: Int
     ) -> TrajectoryStats {
         var totalDistance: Double = 0
+        var drawnPointCount = 0
 
         for segment in segments {
+            drawnPointCount += segment.points.count
             guard segment.points.count > 1 else { continue }
             for i in 1..<segment.points.count {
                 let a = segment.points[i - 1].coordinate
@@ -112,6 +114,7 @@ enum TrajectoryBuilder {
         return TrajectoryStats(
             totalDistanceMeters: totalDistance,
             rawSampleCount: rawSampleCount,
+            drawnPointCount: drawnPointCount,
             segmentCount: segments.count,
             placeCount: placeCount
         )
