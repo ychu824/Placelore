@@ -224,6 +224,8 @@ private struct AlternativePlacePicker: View {
     }
 
     private func confirmPlace() {
+        visit.placeConfirmed = true
+        try? modelContext.save()
         onPlaceChanged?()
         dismiss()
     }
@@ -260,6 +262,7 @@ private struct AlternativePlacePicker: View {
         }
 
         visit.place = newPlace
+        visit.placeConfirmed = true
 
         var remaining = visit.alternativePlaces.filter { $0.id != candidate.id }
         if let prev = previousPlace, prev.id != newPlace.id {
@@ -442,9 +445,15 @@ private struct LogbookVisitRow: View {
                 Button {
                     onPickAlternative?()
                 } label: {
-                    Label("Not the right place?", systemImage: "arrow.triangle.swap")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
+                    if visit.placeConfirmed {
+                        Label("Place confirmed", systemImage: "checkmark.circle")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        Label("Not the right place?", systemImage: "arrow.triangle.swap")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
                 }
                 .buttonStyle(.plain)
                 .padding(.leading, 40)
