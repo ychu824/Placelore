@@ -25,7 +25,7 @@ final class AppSettings: ObservableObject {
 
     private init() {
         let savedMin = UserDefaults.standard.integer(forKey: "minStayMinutes")
-        self.minStayMinutes = savedMin > 0 ? savedMin : 10
+        self.minStayMinutes = savedMin > 0 ? savedMin : 30
 
         let savedMilestones = UserDefaults.standard.array(forKey: "milestoneVisitCounts") as? [Int]
         self.milestoneVisitCounts = savedMilestones ?? [5, 10, 25, 50, 100]
