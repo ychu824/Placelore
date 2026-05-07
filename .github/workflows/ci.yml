@@ -1,12 +1,11 @@
 name: CI
 
-# Disabled for now — re-enable by uncommenting the triggers below
-# on:
-#   push:
-#     branches: [main]
-#   pull_request:
-#     branches: [main]
-on: workflow_dispatch  # manual trigger only
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
