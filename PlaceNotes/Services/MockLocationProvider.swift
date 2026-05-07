@@ -1,5 +1,8 @@
 import Foundation
 import SwiftData
+import os
+
+private let logger = Logger(subsystem: "com.placenotes.app", category: "MockLocationProvider")
 
 /// Provides simulated location visits for debug builds and
 /// cleans up mock data when switching to release.
@@ -78,7 +81,7 @@ final class MockLocationProvider {
                 let durationMinutes = Int.random(in: 5...180)
 
                 var components = calendar.dateComponents([.year, .month, .day], from: now)
-                components.day! -= daysAgo
+                components.day = (components.day ?? 0) - daysAgo
                 components.hour = hour
                 components.minute = minute
 
@@ -89,7 +92,7 @@ final class MockLocationProvider {
 
                 // Assign a random confidence level for testing
                 let confidences: [PlaceConfidence] = [.high, .high, .high, .medium, .medium, .low]
-                visit.confidence = confidences.randomElement()!
+                visit.confidence = confidences.randomElement() ?? .high
                 visit.medianAccuracyMeters = Double.random(in: 5...60)
 
                 // Give ~half the visits some alternative place candidates so
@@ -116,7 +119,7 @@ final class MockLocationProvider {
         try? context.save()
         UserDefaults.standard.set(true, forKey: seededKey)
         UserDefaults.standard.set(seedVersion, forKey: seedVersionKey)
-        print("[MockLocationProvider] Seeded \(samplePlaces.count) places with sample visits (v\(seedVersion))")
+        logger.info("Seeded \(samplePlaces.count) places with sample visits (v\(seedVersion))")
     }
 
     /// Known mock place names used to detect legacy seeded data
@@ -145,6 +148,6 @@ final class MockLocationProvider {
 
         try? context.save()
         UserDefaults.standard.set(false, forKey: seededKey)
-        print("[MockLocationProvider] Purged mock data for release build")
+        logger.info("Purged mock data for release build")
     }
 }

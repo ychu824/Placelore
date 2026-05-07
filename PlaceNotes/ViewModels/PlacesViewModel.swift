@@ -14,8 +14,15 @@ final class PlacesViewModel: ObservableObject {
 
     func refresh(places: [Place]) {
         let now = Date()
-        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: now)!
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: now)!
+        let calendar = Calendar.current
+        guard
+            let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: now),
+            let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now)
+        else {
+            weeklyPlaces = []
+            monthlyPlaces = []
+            return
+        }
 
         weeklyPlaces = ReportGenerator.frequentPlaces(
             from: places,

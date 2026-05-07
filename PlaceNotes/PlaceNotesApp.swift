@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+import os
+
+private let logger = Logger(subsystem: "com.placenotes.app", category: "App")
 
 @main
 struct PlaceNotesApp: App {
@@ -34,13 +37,16 @@ struct PlaceNotesApp: App {
         } catch {
             // Schema migration failed — delete the old store and retry.
             // This is expected when new model fields are added during development.
-            print("[PlaceNotesApp] Store incompatible, resetting: \(error.localizedDescription)")
+            logger.error("Store incompatible, resetting: \(error.localizedDescription, privacy: .public)")
             Self.deleteStoreFiles(at: storeURL)
             UserDefaults.standard.set(false, forKey: "mockDataSeeded_debug")
 
             do {
                 container = try makeContainer()
             } catch {
+                // Unrecoverable: persistence layer cannot initialize even after a clean reset
+                // (e.g. disk full, corrupt FS). The app cannot function without a ModelContainer,
+                // so crashing with a descriptive message is the correct behavior.
                 fatalError("Failed to create ModelContainer after reset: \(error)")
             }
         }

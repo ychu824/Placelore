@@ -1,5 +1,8 @@
 import Foundation
 import UserNotifications
+import os
+
+private let logger = Logger(subsystem: "com.placenotes.app", category: "Notifications")
 
 final class NotificationManager {
     static let shared = NotificationManager()
@@ -9,7 +12,7 @@ final class NotificationManager {
     func requestAuthorization() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error {
-                print("Notification auth error: \(error.localizedDescription)")
+                logger.error("Notification auth error: \(error.localizedDescription, privacy: .public)")
             }
         }
     }

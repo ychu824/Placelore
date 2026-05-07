@@ -43,7 +43,19 @@ final class ReportGenerator {
         referenceDate: Date = Date()
     ) -> MonthlyReport {
         let calendar = Calendar.current
-        let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate))!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+
+        guard let startOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: referenceDate)) else {
+            return MonthlyReport(
+                month: formatter.string(from: referenceDate),
+                topPlaces: [],
+                totalTrackedMinutes: 0,
+                preferredTimeOfDay: .morning,
+                visitsByTimeOfDay: [:],
+                totalVisits: 0
+            )
+        }
 
         let allVisitsThisMonth = places.flatMap { $0.visits }
             .filter { $0.arrivalDate >= startOfMonth }
@@ -58,9 +70,6 @@ final class ReportGenerator {
         }
 
         let preferredTime = timeOfDayCounts.max(by: { $0.value < $1.value })?.key ?? .morning
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM yyyy"
 
         return MonthlyReport(
             month: formatter.string(from: referenceDate),
