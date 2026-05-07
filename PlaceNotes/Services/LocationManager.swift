@@ -253,11 +253,11 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         let arrival = clVisit.arrivalDate
         let departure = clVisit.departureDate == .distantFuture ? nil : clVisit.departureDate
 
-        // Check minimum dwell time for CLVisit
         if let dep = departure {
             let dwell = dep.timeIntervalSince(arrival)
-            if dwell < minimumDwellSeconds {
-                logger.info("CLVisit ignored — dwell too short (\(Int(dwell))s < \(Int(self.minimumDwellSeconds))s)")
+            let threshold = dwellThresholdSeconds
+            if dwell < threshold {
+                logger.info("CLVisit ignored — dwell too short (\(Int(dwell))s < \(Int(threshold))s)")
                 return
             }
         }
