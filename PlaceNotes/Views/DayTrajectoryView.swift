@@ -6,6 +6,7 @@ struct DayTrajectoryView: View {
     @Environment(\.modelContext) private var modelContext
     let day: Date
 
+    @State private var rawSamples: [RawLocationSample] = []
     @State private var segments: [TrajectorySegment] = []
     @State private var stats: TrajectoryStats?
     @State private var dayPlaces: [Place] = []
@@ -13,6 +14,7 @@ struct DayTrajectoryView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var dayVisits: [Visit] = []
     @State private var selectedVisit: Visit.ID?
+    @State private var showAllSamples = false
 
     private static let navTitleFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -33,6 +35,25 @@ struct DayTrajectoryView: View {
         ZStack {
             Map(position: $cameraPosition, selection: $selectedPlace) {
                 TrajectoryPolyline(segments: segments, colorMode: .time)
+
+                if showAllSamples {
+                    ForEach(rawSamples, id: \.id) { sample in
+                        Annotation(
+                            "",
+                            coordinate: CLLocationCoordinate2D(
+                                latitude: sample.latitude,
+                                longitude: sample.longitude
+                            )
+                        ) {
+                            Circle()
+                                .fill(Color.blue.opacity(0.7))
+                                .frame(width: 6, height: 6)
+                                .overlay(
+                                    Circle().stroke(Color.white, lineWidth: 1)
+                                )
+                        }
+                    }
+                }
 
                 ForEach(rankings(), id: \.id) { ranking in
                     Annotation(
@@ -61,18 +82,31 @@ struct DayTrajectoryView: View {
                 Spacer()
                 HStack {
                     Spacer()
-                    Button {
-                        selectedVisit = nil
-                        withAnimation {
-                            cameraPosition = initialCamera(segments: segments, places: dayPlaces)
+                    VStack(spacing: 12) {
+                        Button {
+                            showAllSamples.toggle()
+                        } label: {
+                            Image(systemName: showAllSamples ? "circle.grid.3x3.fill" : "circle.grid.3x3")
+                                .font(.title3)
+                                .foregroundStyle(showAllSamples ? Color.accentColor : Color.primary)
+                                .padding(12)
+                                .background(.regularMaterial)
+                                .clipShape(Circle())
+                                .shadow(radius: 2)
                         }
-                    } label: {
-                        Image(systemName: "scope")
-                            .font(.title3)
-                            .padding(12)
-                            .background(.regularMaterial)
-                            .clipShape(Circle())
-                            .shadow(radius: 2)
+                        Button {
+                            selectedVisit = nil
+                            withAnimation {
+                                cameraPosition = initialCamera(segments: segments, places: dayPlaces)
+                            }
+                        } label: {
+                            Image(systemName: "scope")
+                                .font(.title3)
+                                .padding(12)
+                                .background(.regularMaterial)
+                                .clipShape(Circle())
+                                .shadow(radius: 2)
+                        }
                     }
                     .padding(.trailing, 16)
                     // 112 = 88 (strip height) + 12 (strip bottom padding) + 12 (gap above strip)
@@ -105,6 +139,9 @@ struct DayTrajectoryView: View {
         }
         .task(id: day) {
             await load()
+        }
+        .onChange(of: showAllSamples) { _, _ in
+            rebuildTrajectory()
         }
     }
 
@@ -170,19 +207,27 @@ struct DayTrajectoryView: View {
         )
         let visitsToday = (try? modelContext.fetch(visitDescriptor)) ?? []
 
-        let builtSegments = TrajectoryBuilder.build(samples: samples, day: day)
-        let computedStats = TrajectoryBuilder.computeStats(
-            segments: builtSegments,
-            rawSampleCount: samples.count,
-            placeCount: placesToday.count
-        )
-
-        self.segments = builtSegments
+        self.rawSamples = samples
         self.dayPlaces = placesToday
         self.dayVisits = visitsToday
-        self.stats = computedStats
         self.selectedVisit = nil
-        self.cameraPosition = initialCamera(segments: builtSegments, places: placesToday)
+        rebuildTrajectory()
+        self.cameraPosition = initialCamera(segments: segments, places: placesToday)
+    }
+
+    private func rebuildTrajectory() {
+        let epsilon: Double = showAllSamples ? 0 : 5
+        let builtSegments = TrajectoryBuilder.build(
+            samples: rawSamples,
+            day: day,
+            epsilonMeters: epsilon
+        )
+        self.segments = builtSegments
+        self.stats = TrajectoryBuilder.computeStats(
+            segments: builtSegments,
+            rawSampleCount: rawSamples.count,
+            placeCount: dayPlaces.count
+        )
     }
 
     private func recenterToVisit(_ visit: Visit) {

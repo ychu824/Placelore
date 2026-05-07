@@ -131,7 +131,7 @@ enum TrajectoryBuilder {
 
         return raw.compactMap { rawSegment in
             let points = convertToPoints(rawSegment, dayStart: dayStart)
-            let simplified = simplify(points, epsilonMeters: epsilonMeters)
+            let simplified = epsilonMeters > 0 ? simplify(points, epsilonMeters: epsilonMeters) : points
             guard simplified.count >= 2 else { return nil }
             return TrajectorySegment(points: simplified)
         }
