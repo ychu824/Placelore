@@ -1,8 +1,8 @@
-# PlaceNotes Privacy Policy
+# Placelore Privacy Policy
 
-_Last updated: May 7, 2026_
+_Last updated: May 8, 2026_
 
-PlaceNotes ("the app") is an iOS application that helps you keep a personal journal of the places you visit. This policy explains what data the app handles and how.
+Placelore ("the app") is an iOS application that helps you keep a personal journal of the places you visit. This policy explains what data the app handles and how.
 
 ## Summary
 
@@ -13,7 +13,7 @@ PlaceNotes ("the app") is an iOS application that helps you keep a personal jour
 
 ## Data the app collects
 
-PlaceNotes accesses the following data **only on your device**:
+Placelore accesses the following data **only on your device**:
 
 ### Location
 
@@ -38,7 +38,7 @@ PlaceNotes accesses the following data **only on your device**:
 
 ## Data sharing
 
-PlaceNotes does not transmit your data to the developer or to any third party. There is no server to share data with.
+Placelore does not transmit your data to the developer or to any third party. There is no server to share data with.
 
 ## Data retention and deletion
 
@@ -55,7 +55,7 @@ You can revoke any of these permissions at any time in the iOS Settings app.
 
 ## Children
 
-PlaceNotes is not directed at children under 13 and does not knowingly collect data from them. Because the app does not collect personal information at all, no special children-data handling is needed.
+Placelore is not directed at children under 13 and does not knowingly collect data from them. Because the app does not collect personal information at all, no special children-data handling is needed.
 
 ## Changes to this policy
 
