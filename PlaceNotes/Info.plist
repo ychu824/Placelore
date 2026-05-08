@@ -7,7 +7,7 @@
     <key>CFBundleName</key>
     <string>$(PRODUCT_NAME)</string>
     <key>CFBundleDisplayName</key>
-    <string>PlaceNotes</string>
+    <string>Placelore</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundlePackageType</key>
@@ -32,11 +32,11 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>PlaceNotes uses your location in the background to automatically detect the places you visit, so your logbook stays up to date without you opening the app.</string>
+    <string>Placelore uses your location in the background to automatically detect the places you visit, so your logbook stays up to date without you opening the app.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>PlaceNotes uses your current location to log the place you are visiting and attach it to your notes.</string>
+    <string>Placelore uses your current location to log the place you are visiting and attach it to your notes.</string>
     <key>NSCameraUsageDescription</key>
-    <string>PlaceNotes uses the camera to attach photos to your visits and journal entries for a place.</string>
+    <string>Placelore uses the camera to attach photos to your visits and journal entries for a place.</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>UIBackgroundModes</key>

@@ -40,7 +40,7 @@ struct TrackingControlView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .navigationTitle("PlaceNotes")
+            .navigationTitle("Placelore")
             .sheet(isPresented: $showTrackingSheet) { trackingSheet }
             .fullScreenCover(isPresented: $quickCapture.showCamera) {
                 CameraPickerView(
@@ -131,7 +131,7 @@ struct TrackingControlView: View {
         .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("Enable Camera access in Settings → PlaceNotes to capture photos.")
+            Text("Enable Camera access in Settings → Placelore to capture photos.")
         }
     }
 

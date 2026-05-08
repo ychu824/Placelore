@@ -1,6 +1,8 @@
-# PlaceNotes
+# Placelore
 
 An iOS app that tracks the places you visit and generates frequency reports and behavior summaries — with an offline-first trajectory analysis pipeline for trip detection and transportation mode inference.
+
+> The Xcode project, scheme, and bundle ID still use the original `PlaceNotes` identifiers. Only the user-facing display name is `Placelore`.
 
 ## Features
 
@@ -16,7 +18,7 @@ An iOS app that tracks the places you visit and generates frequency reports and 
 
 ## Research: Two-Stage ST-DBSCAN for On-Device Trip Detection
 
-PlaceNotes doubles as a research platform for studying lightweight trajectory analysis on mobile devices. The app collects rich GPS data (coordinates, timestamps, speed, course, accuracy) which feeds into an offline analysis pipeline.
+Placelore doubles as a research platform for studying lightweight trajectory analysis on mobile devices. The app collects rich GPS data (coordinates, timestamps, speed, course, accuracy) which feeds into an offline analysis pipeline.
 
 ### Background
 

@@ -10,7 +10,7 @@
 
 ## App Overview
 
-**PlaceNotes** is an iOS app (Swift / SwiftUI / SwiftData) that passively tracks the user's location and logs meaningful "stays" as named places with timestamped visits. Users can attach journal entries and photos to places, view a logbook of past visits, and generate reports.
+**Placelore** (codebase identifier: `PlaceNotes`) is an iOS app (Swift / SwiftUI / SwiftData) that passively tracks the user's location and logs meaningful "stays" as named places with timestamped visits. Users can attach journal entries and photos to places, view a logbook of past visits, and generate reports. The Xcode target, scheme, bundle ID, and folder names all remain `PlaceNotes`; only the App Store display name is `Placelore`.
 
 ---
 
