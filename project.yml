@@ -11,6 +11,12 @@ settings:
     TARGETED_DEVICE_FAMILY: "1,2"
     DEVELOPMENT_TEAM: H63486AZ9Y
     CODE_SIGN_STYLE: Automatic
+  configs:
+    Release:
+      COPY_PHASE_STRIP: YES
+      STRIP_INSTALLED_PRODUCT: YES
+      DEAD_CODE_STRIPPING: YES
+      VALIDATE_PRODUCT: YES
 
 schemes:
   PlaceNotes:
@@ -38,6 +44,12 @@ targets:
         CURRENT_PROJECT_VERSION: 1
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: PlaceNotes/PlaceNotes.entitlements
+      configs:
+        Release:
+          COPY_PHASE_STRIP: YES
+          STRIP_INSTALLED_PRODUCT: YES
+          DEAD_CODE_STRIPPING: YES
+          VALIDATE_PRODUCT: YES
     entitlements:
       path: PlaceNotes/PlaceNotes.entitlements
 
