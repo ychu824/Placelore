@@ -1,10 +1,39 @@
 import Foundation
+import SwiftUI
+
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
 
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
 
     @Published var minStayMinutes: Int {
         didSet { UserDefaults.standard.set(minStayMinutes, forKey: "minStayMinutes") }
+    }
+
+    @Published var appearanceMode: AppearanceMode {
+        didSet { UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode") }
     }
 
     @Published var milestoneVisitCounts: [Int] {
@@ -32,6 +61,13 @@ final class AppSettings: ObservableObject {
 
         let savedRetention = UserDefaults.standard.integer(forKey: "rawLocationRetentionDays")
         self.rawLocationRetentionDays = savedRetention > 0 ? savedRetention : 30
+
+        if let raw = UserDefaults.standard.string(forKey: "appearanceMode"),
+           let mode = AppearanceMode(rawValue: raw) {
+            self.appearanceMode = mode
+        } else {
+            self.appearanceMode = .system
+        }
 
         if let data = UserDefaults.standard.data(forKey: "trackingState"),
            let state = try? JSONDecoder().decode(TrackingState.self, from: data) {

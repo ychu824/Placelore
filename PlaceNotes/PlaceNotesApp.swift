@@ -6,7 +6,7 @@ private let logger = Logger(subsystem: "com.placenotes.app", category: "App")
 
 @main
 struct PlaceNotesApp: App {
-    let settings: AppSettings
+    @ObservedObject var settings: AppSettings
     let locationManager: LocationManager
     let trackingManager: TrackingManager
     let modelContainer: ModelContainer
@@ -81,6 +81,7 @@ struct PlaceNotesApp: App {
                 .environmentObject(locationManager)
                 .environmentObject(makeTrackingViewModel())
                 .environmentObject(makeQuickCaptureViewModel())
+                .preferredColorScheme(settings.appearanceMode.colorScheme)
                 .onAppear {
                     NotificationManager.shared.requestAuthorization()
                     Self.removeOldSharedStore()

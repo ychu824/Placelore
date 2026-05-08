@@ -106,6 +106,18 @@ struct SettingsView: View {
                     Text("You'll be notified when any place reaches these visit counts.")
                 }
 
+                Section {
+                    Picker("Appearance", selection: $settings.appearanceMode) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                } header: {
+                    Text("Appearance")
+                } footer: {
+                    Text("System matches your device's Light/Dark setting.")
+                }
+
                 Section("Tracking Status") {
                     LabeledContent("Status", value: trackingViewModel.statusText)
 
