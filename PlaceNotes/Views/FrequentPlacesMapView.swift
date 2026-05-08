@@ -89,8 +89,8 @@ struct FrequentPlacesMapView: View {
                 viewModel.refresh(places: places)
                 rebuildAnnotations()
             }
-            .onChange(of: places) { _, newPlaces in
-                viewModel.refresh(places: newPlaces)
+            .onChange(of: placesDisplayKey) { _, _ in
+                viewModel.refresh(places: places)
                 rebuildAnnotations()
             }
             .alert("Tracking Disabled", isPresented: $showTrackingAlert) {
@@ -105,6 +105,12 @@ struct FrequentPlacesMapView: View {
     }
 
     // MARK: - Clustering
+
+    /// Captures display-affecting properties so onChange fires on rename / category
+    /// edits — `[Place]` alone compares by reference and stays "equal" after a rename.
+    private var placesDisplayKey: [String] {
+        places.map { "\($0.id)|\($0.displayName)|\($0.emoji)" }
+    }
 
     /// Rebuilds annotations only when region or data changes — not on every render.
     private func rebuildAnnotations() {
@@ -194,8 +200,9 @@ protocol MapAnnotationItem: Identifiable {
 struct SingleItem: MapAnnotationItem {
     let ranking: PlaceRanking
 
-    /// Stable ID derived from the place, so SwiftUI reuses the view.
-    var id: String { "single-\(ranking.place.id)" }
+    /// Includes displayName and emoji so a rename or category change forces
+    /// SwiftUI to rebuild the Annotation — its label is captured at body time.
+    var id: String { "single-\(ranking.place.id)-\(ranking.place.displayName)-\(ranking.place.emoji)" }
     var coordinate: CLLocationCoordinate2D { ranking.place.coordinate }
 }
 
