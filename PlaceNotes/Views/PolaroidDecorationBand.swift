@@ -7,6 +7,12 @@ import SwiftUI
 struct PolaroidDecorationBand: View {
     let entries: [JournalEntry]
 
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        return f
+    }()
+
     var body: some View {
         let polaroids = PolaroidSelection.selectFor(entries: entries)
         ZStack {
@@ -23,8 +29,6 @@ struct PolaroidDecorationBand: View {
         let thumbnail = PolaroidThumbnailView(entry: entry)
             .rotationEffect(rotation(index: index, total: total))
             .offset(offset(index: index, total: total))
-            .accessibilityLabel(accessibilityLabel(for: entry))
-            .accessibilityHint("Tap to view place")
 
         if let place = entry.place {
             NavigationLink {
@@ -33,8 +37,11 @@ struct PolaroidDecorationBand: View {
                 thumbnail
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(accessibilityLabel(for: entry))
+            .accessibilityHint("Tap to view place")
         } else {
             thumbnail
+                .accessibilityHidden(true)
         }
     }
 
@@ -50,9 +57,7 @@ struct PolaroidDecorationBand: View {
 
     private func accessibilityLabel(for entry: JournalEntry) -> String {
         let name = entry.place?.displayName ?? "Place"
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        let date = formatter.localizedString(for: entry.date, relativeTo: Date())
+        let date = Self.relativeDateFormatter.localizedString(for: entry.date, relativeTo: Date())
         return "Photo from \(name), \(date)"
     }
 }
