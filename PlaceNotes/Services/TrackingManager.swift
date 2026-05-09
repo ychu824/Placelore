@@ -2,7 +2,7 @@ import Foundation
 import Combine
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "TrackingManager")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "TrackingManager")
 
 final class TrackingManager: ObservableObject {
     private let locationManager: LocationManager

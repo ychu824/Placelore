@@ -77,7 +77,7 @@ iOS does **not** prompt for Always immediately. To force the upgrade prompt:
 
 ## Final verification
 
-- [ ] No `os_log` errors visible in Console.app filtered by subsystem `com.placenotes.app` and level **Error**.
+- [ ] No `os_log` errors visible in Console.app filtered by subsystem `dev.placelore.app` and level **Error**.
 - [ ] No `fatalError` hit. (The only one is `PlaceNotesApp.init` after a second store-create failure — should never fire on a clean install.)
 - [ ] Settings app → Placelore shows: Location = Always (or While Using), Notifications = On, Camera = On.
 

@@ -3,7 +3,7 @@ import CoreLocation
 import SwiftData
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "QuickCaptureService")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "QuickCaptureService")
 
 enum QuickCaptureResult {
     case newVisit(visitID: UUID, placeName: String, journalEntryID: UUID)

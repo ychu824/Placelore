@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "MockLocationProvider")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "MockLocationProvider")
 
 /// Provides simulated location visits for debug builds and
 /// cleans up mock data when switching to release.
