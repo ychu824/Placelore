@@ -53,9 +53,6 @@ struct PolaroidThumbnailView: View {
             image = nil
             return
         }
-        let loaded = await Task.detached(priority: .userInitiated) {
-            PhotoStorage.loadImage(filename: id)
-        }.value
-        await MainActor.run { self.image = loaded }
+        image = PhotoStorage.loadImage(filename: id)
     }
 }
