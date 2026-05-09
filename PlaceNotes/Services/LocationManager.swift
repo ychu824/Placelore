@@ -3,7 +3,7 @@ import CoreLocation
 import SwiftData
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "LocationManager")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "LocationManager")
 
 // MARK: - Location Sample
 

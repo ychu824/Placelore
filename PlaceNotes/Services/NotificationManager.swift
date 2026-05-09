@@ -2,7 +2,7 @@ import Foundation
 import UserNotifications
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "Notifications")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "Notifications")
 
 final class NotificationManager {
     static let shared = NotificationManager()

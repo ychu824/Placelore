@@ -2,7 +2,7 @@ import Foundation
 import CoreLocation
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "LocationOneShot")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "LocationOneShot")
 
 @MainActor
 protocol LocationOneShotProviding {

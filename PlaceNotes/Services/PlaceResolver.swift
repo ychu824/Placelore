@@ -4,7 +4,7 @@ import MapKit
 import SwiftData
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "PlaceResolver")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "PlaceResolver")
 
 private struct ResolvedPlace {
     let name: String

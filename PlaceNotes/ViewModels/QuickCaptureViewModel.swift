@@ -5,7 +5,7 @@ import SwiftData
 import UIKit
 import os
 
-private let logger = Logger(subsystem: "com.placenotes.app", category: "QuickCaptureViewModel")
+private let logger = Logger(subsystem: "dev.placelore.app", category: "QuickCaptureViewModel")
 
 @MainActor
 final class QuickCaptureViewModel: ObservableObject {
