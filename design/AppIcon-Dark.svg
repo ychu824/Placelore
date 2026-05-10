@@ -17,6 +17,10 @@
     <clipPath id="photoClip">
       <rect x="-276" y="-336" width="552" height="552"/>
     </clipPath>
+    <mask id="moonMask">
+      <rect x="-276" y="-336" width="552" height="552" fill="white"/>
+      <circle cx="196" cy="-254" r="28" fill="black"/>
+    </mask>
   </defs>
 
   <rect width="1024" height="1024" fill="url(#bg)"/>
@@ -26,8 +30,7 @@
     <g clip-path="url(#photoClip)">
       <rect x="-276" y="-336" width="552" height="552" fill="url(#sky)"/>
 
-      <circle cx="180" cy="-250" r="32" fill="#F4EFD8"/>
-      <circle cx="190" cy="-256" r="26" fill="#E5DDB8"/>
+      <circle cx="180" cy="-250" r="32" fill="#F4EFD8" mask="url(#moonMask)"/>
 
       <g fill="#FFFFFF">
         <circle cx="-220" cy="-300" r="2"/>
