@@ -1,22 +1,40 @@
 import SwiftUI
+import SwiftData
 
 struct TrackingControlView: View {
     @EnvironmentObject var trackingViewModel: TrackingViewModel
     @EnvironmentObject var quickCapture: QuickCaptureViewModel
 
+    @Query(sort: \JournalEntry.date, order: .reverse)
+    private var recentJournalEntries: [JournalEntry]
+
     @State private var showTrackingSheet = false
     @State private var showCameraPermissionAlert = false
+
+    private var polaroidEntries: [JournalEntry] {
+        PolaroidSelection.selectFor(entries: recentJournalEntries)
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                VStack(spacing: 32) {
+                VStack(spacing: 28) {
                     trackingChip
                         .padding(.top, 8)
 
                     Spacer()
 
-                    shutterButton
+                    PolaroidDecorationBand(entries: recentJournalEntries)
+
+                    PhotographicShutterButton(isBusy: isBusy) {
+                        Task {
+                            if await CameraPickerView.requestCameraPermission() {
+                                quickCapture.beginCapture()
+                            } else {
+                                showCameraPermissionAlert = true
+                            }
+                        }
+                    }
 
                     Text("Tap to log this place")
                         .font(.subheadline)
@@ -80,6 +98,12 @@ struct TrackingControlView: View {
             } message: {
                 if case let .error(msg) = quickCapture.state { Text(msg) }
             }
+            .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Enable Camera access in Settings → Placelore to capture photos.")
+            }
+            .animation(.easeInOut(duration: 0.3), value: polaroidEntries.map(\.id))
         }
     }
 
@@ -99,6 +123,9 @@ struct TrackingControlView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(.ultraThinMaterial, in: Capsule())
+            .overlay(
+                Capsule().stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -107,31 +134,6 @@ struct TrackingControlView: View {
         switch quickCapture.state {
         case .idle: return false
         default: return true
-        }
-    }
-
-    @ViewBuilder
-    private var shutterButton: some View {
-        Button {
-            Task {
-                if await CameraPickerView.requestCameraPermission() {
-                    quickCapture.beginCapture()
-                } else {
-                    showCameraPermissionAlert = true
-                }
-            }
-        } label: {
-            ZStack {
-                Circle().fill(.white).frame(width: 96, height: 96)
-                Circle().stroke(.primary, lineWidth: 4).frame(width: 112, height: 112)
-            }
-        }
-        .disabled(isBusy)
-        .buttonStyle(.plain)
-        .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Enable Camera access in Settings → Placelore to capture photos.")
         }
     }
 
