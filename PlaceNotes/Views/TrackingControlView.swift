@@ -5,15 +5,14 @@ struct TrackingControlView: View {
     @EnvironmentObject var trackingViewModel: TrackingViewModel
     @EnvironmentObject var quickCapture: QuickCaptureViewModel
 
-    @Query(sort: \JournalEntry.date, order: .reverse)
+    @Query(
+        sort: \JournalEntry.date,
+        order: .reverse
+    )
     private var recentJournalEntries: [JournalEntry]
 
     @State private var showTrackingSheet = false
     @State private var showCameraPermissionAlert = false
-
-    private var polaroidEntries: [JournalEntry] {
-        PolaroidSelection.selectFor(entries: recentJournalEntries)
-    }
 
     var body: some View {
         NavigationStack {
@@ -24,7 +23,7 @@ struct TrackingControlView: View {
 
                     Spacer()
 
-                    PolaroidDecorationBand(entries: recentJournalEntries)
+                    PolaroidDecorationBand(entries: Array(recentJournalEntries.prefix(20)))
 
                     PhotographicShutterButton(isBusy: isBusy) {
                         Task {
@@ -103,7 +102,10 @@ struct TrackingControlView: View {
             } message: {
                 Text("Enable Camera access in Settings → Placelore to capture photos.")
             }
-            .animation(.easeInOut(duration: 0.3), value: polaroidEntries.map(\.id))
+            .animation(
+                .easeInOut(duration: 0.3),
+                value: recentJournalEntries.prefix(2).map(\.id)
+            )
         }
     }
 
