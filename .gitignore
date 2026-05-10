@@ -60,3 +60,4 @@ __pycache__/
 
 # Superpowers (local docs/specs/plans, not part of the codebase)
 docs/superpowers/
+.superpowers/
