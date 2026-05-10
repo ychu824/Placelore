@@ -1,22 +1,38 @@
 import SwiftUI
+import SwiftData
 
 struct TrackingControlView: View {
     @EnvironmentObject var trackingViewModel: TrackingViewModel
     @EnvironmentObject var quickCapture: QuickCaptureViewModel
 
+    @Query(
+        sort: \JournalEntry.date,
+        order: .reverse
+    )
+    private var recentJournalEntries: [JournalEntry]
+
     @State private var showTrackingSheet = false
     @State private var showCameraPermissionAlert = false
+    @State private var showTrackingOffAlert = false
 
     var body: some View {
         NavigationStack {
             ZStack {
-                VStack(spacing: 32) {
+                VStack(spacing: 28) {
                     trackingChip
                         .padding(.top, 8)
 
                     Spacer()
 
-                    shutterButton
+                    PolaroidDecorationBand(entries: Array(recentJournalEntries.prefix(20)))
+
+                    PhotographicShutterButton(isBusy: isBusy) {
+                        if isTrackingActive {
+                            attemptCapture()
+                        } else {
+                            showTrackingOffAlert = true
+                        }
+                    }
 
                     Text("Tap to log this place")
                         .font(.subheadline)
@@ -80,6 +96,30 @@ struct TrackingControlView: View {
             } message: {
                 if case let .error(msg) = quickCapture.state { Text(msg) }
             }
+            .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Enable Camera access in Settings → Placelore to capture photos.")
+            }
+            .alert("Tracking is off", isPresented: $showTrackingOffAlert) {
+                Button("Turn On Tracking") {
+                    switch trackingViewModel.trackingManager.state.status {
+                    case .paused: trackingViewModel.resume()
+                    case .disabled: trackingViewModel.enable()
+                    case .active: break
+                    }
+                    attemptCapture()
+                }
+                Button("Log Anyway", role: .cancel) {
+                    attemptCapture()
+                }
+            } message: {
+                Text("Your location won't be tracked precisely. Turn tracking on for accurate place logging.")
+            }
+            .animation(
+                .easeInOut(duration: 0.3),
+                value: recentJournalEntries.prefix(2).map(\.id)
+            )
         }
     }
 
@@ -99,6 +139,9 @@ struct TrackingControlView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(.ultraThinMaterial, in: Capsule())
+            .overlay(
+                Capsule().stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+            )
         }
         .buttonStyle(.plain)
     }
@@ -110,28 +153,17 @@ struct TrackingControlView: View {
         }
     }
 
-    @ViewBuilder
-    private var shutterButton: some View {
-        Button {
-            Task {
-                if await CameraPickerView.requestCameraPermission() {
-                    quickCapture.beginCapture()
-                } else {
-                    showCameraPermissionAlert = true
-                }
+    private var isTrackingActive: Bool {
+        trackingViewModel.trackingManager.state.status == .active
+    }
+
+    private func attemptCapture() {
+        Task {
+            if await CameraPickerView.requestCameraPermission() {
+                quickCapture.beginCapture()
+            } else {
+                showCameraPermissionAlert = true
             }
-        } label: {
-            ZStack {
-                Circle().fill(.white).frame(width: 96, height: 96)
-                Circle().stroke(.primary, lineWidth: 4).frame(width: 112, height: 112)
-            }
-        }
-        .disabled(isBusy)
-        .buttonStyle(.plain)
-        .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Enable Camera access in Settings → Placelore to capture photos.")
         }
     }
 

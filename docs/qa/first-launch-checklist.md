@@ -102,3 +102,15 @@ These were verified before running the device test. Track regressions if any of 
 - Background dwell detection over 30+ min (covered by Phase 1.1).
 - Force-unwrap and `print` sweep (Phase 1.2).
 - Build configuration audit (Phase 1.3).
+
+## Tracking Page Visual Polish
+
+- [ ] Fresh install (clear app data) → Tracking tab shows shutter only, no polaroids.
+- [ ] Capture one photo via the shutter, return to Tracking → exactly one polaroid appears, slightly rotated, left of the shutter.
+- [ ] Capture a second photo at a different place → two polaroids fanned behind the shutter (one tilted left, one tilted right).
+- [ ] Tap a polaroid → navigates into `PlaceDetailView` for that place. Back button returns to Tracking.
+- [ ] Toggle dark mode (Settings → Appearance → Dark) → shutter ring still visible, polaroids legible, no contrast issues.
+- [ ] Toggle Light/System modes — same checks pass.
+- [ ] Settings → Accessibility → Reduce Motion: ON → press the shutter, scale animation does not fire.
+- [ ] Settings → Display → Text Size: largest → caption "Tap to log this place" still fits, polaroid captions truncate with ellipsis (no clipping into the shutter).
+- [ ] Press the shutter while location is being acquired → ProgressView replaces the inner lens, button is non-interactive until capture finishes or fails.
