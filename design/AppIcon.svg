@@ -57,64 +57,36 @@
 
       <rect x="-276" y="200" width="552" height="16" fill="#8A7A5C"/>
 
-      <g fill="#4A5C73">
-        <rect x="-50" y="-130" width="5" height="5"/>
-        <rect x="-22" y="-130" width="5" height="5"/>
-        <rect x="-36" y="-114" width="5" height="5"/>
-        <rect x="-8"  y="-114" width="5" height="5"/>
-        <rect x="-50" y="-98"  width="5" height="5"/>
-        <rect x="-22" y="-98"  width="5" height="5"/>
-        <rect x="-8"  y="-98"  width="5" height="5"/>
-        <rect x="-36" y="-82"  width="5" height="5"/>
-        <rect x="-50" y="-68"  width="5" height="5"/>
-        <rect x="-22" y="-68"  width="5" height="5"/>
+      <g>
+        <rect x="-234" y="190" width="4" height="26" fill="#5C3A24"/>
+        <polygon points="-248,190 -218,190 -232,150" fill="#2E8B57"/>
 
-        <rect x="30" y="-80" width="5" height="5"/>
-        <rect x="62" y="-80" width="5" height="5"/>
-        <rect x="46" y="-64" width="5" height="5"/>
-        <rect x="78" y="-64" width="5" height="5"/>
-        <rect x="30" y="-48" width="5" height="5"/>
-        <rect x="62" y="-48" width="5" height="5"/>
-        <rect x="78" y="-32" width="5" height="5"/>
-        <rect x="46" y="-16" width="5" height="5"/>
+        <ellipse cx="-192" cy="208" rx="22" ry="9" fill="#4DB66B"/>
 
-        <rect x="120" y="-30" width="5" height="5"/>
-        <rect x="152" y="-30" width="5" height="5"/>
-        <rect x="136" y="-16" width="5" height="5"/>
-        <rect x="168" y="-16" width="5" height="5"/>
+        <rect x="-152" y="188" width="4" height="28" fill="#5C3A24"/>
+        <circle cx="-150" cy="178" r="16" fill="#3CA055"/>
 
-        <rect x="-165" y="26"  width="5" height="5"/>
-        <rect x="-149" y="26"  width="5" height="5"/>
-        <rect x="-133" y="46"  width="5" height="5"/>
-        <rect x="-165" y="46"  width="5" height="5"/>
-        <rect x="-149" y="66"  width="5" height="5"/>
-        <rect x="-133" y="86"  width="5" height="5"/>
-        <rect x="-165" y="106" width="5" height="5"/>
-        <rect x="-149" y="126" width="5" height="5"/>
+        <ellipse cx="-110" cy="210" rx="24" ry="10" fill="#5BC57B"/>
 
-        <rect x="-10" y="-14" width="5" height="5"/>
-        <rect x="6"   y="8"   width="5" height="5"/>
-        <rect x="22"  y="8"   width="5" height="5"/>
-        <rect x="-10" y="30"  width="5" height="5"/>
-        <rect x="6"   y="52"  width="5" height="5"/>
-        <rect x="22"  y="74"  width="5" height="5"/>
-        <rect x="-10" y="96"  width="5" height="5"/>
-        <rect x="6"   y="118" width="5" height="5"/>
+        <rect x="-72" y="180" width="4" height="36" fill="#5C3A24"/>
+        <polygon points="-86,180 -54,180 -70,138" fill="#256B45"/>
 
-        <rect x="80"  y="40"  width="5" height="5"/>
-        <rect x="112" y="40"  width="5" height="5"/>
-        <rect x="96"  y="60"  width="5" height="5"/>
-        <rect x="128" y="80"  width="5" height="5"/>
-        <rect x="80"  y="100" width="5" height="5"/>
-        <rect x="112" y="120" width="5" height="5"/>
-        <rect x="96"  y="140" width="5" height="5"/>
+        <ellipse cx="-30" cy="208" rx="22" ry="9" fill="#4DB66B"/>
 
-        <rect x="180" y="70"  width="5" height="5"/>
-        <rect x="196" y="70"  width="5" height="5"/>
-        <rect x="212" y="90"  width="5" height="5"/>
-        <rect x="180" y="110" width="5" height="5"/>
-        <rect x="196" y="130" width="5" height="5"/>
-        <rect x="212" y="150" width="5" height="5"/>
+        <rect x="10" y="186" width="4" height="30" fill="#5C3A24"/>
+        <circle cx="12" cy="176" r="18" fill="#3CA055"/>
+
+        <ellipse cx="60" cy="210" rx="28" ry="11" fill="#5BC57B"/>
+
+        <rect x="110" y="184" width="4" height="32" fill="#5C3A24"/>
+        <polygon points="124,184 96,184 110,144" fill="#2E8B57"/>
+
+        <ellipse cx="158" cy="210" rx="22" ry="9" fill="#4DB66B"/>
+
+        <rect x="198" y="186" width="4" height="30" fill="#5C3A24"/>
+        <circle cx="200" cy="174" r="17" fill="#3CA055"/>
+
+        <ellipse cx="240" cy="208" rx="22" ry="9" fill="#5BC57B"/>
       </g>
     </g>
   </g>
