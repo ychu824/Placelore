@@ -40,7 +40,7 @@ struct PolaroidThumbnailView: View {
                 .padding(.horizontal, 4)
         }
         .padding(6)
-        .background(Color.white)
+        .background(Color(.tertiarySystemBackground))
         .cornerRadius(2)
         .shadow(color: .black.opacity(0.18), radius: 6, x: 0, y: 3)
         .task(id: firstAssetId) {
