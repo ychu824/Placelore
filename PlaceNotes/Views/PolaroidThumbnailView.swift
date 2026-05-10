@@ -53,6 +53,6 @@ struct PolaroidThumbnailView: View {
             image = nil
             return
         }
-        image = PhotoStorage.loadImage(filename: id)
+        image = PhotoStorage.loadThumbnail(filename: id, maxDimension: 400)
     }
 }
