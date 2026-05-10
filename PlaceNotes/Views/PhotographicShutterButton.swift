@@ -12,8 +12,9 @@ struct PhotographicShutterButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isPressed = false
 
+    /// Lighter gradient stop above the AccentColor body.
     private static let bodyTop = Color(red: 0.353, green: 0.478, blue: 0.576)   // #5A7A93
-    private static let bodyMid = Color(red: 0.259, green: 0.365, blue: 0.459)   // #425D75
+    /// Darker gradient stop below the AccentColor body.
     private static let bodyBottom = Color(red: 0.192, green: 0.278, blue: 0.341) // #314757
     private static let lensTop = Color(red: 0.180, green: 0.263, blue: 0.349)    // #2E4359
     private static let lensBottom = Color(red: 0.114, green: 0.176, blue: 0.239) // #1D2D3D
@@ -23,7 +24,7 @@ struct PhotographicShutterButton: View {
             ZStack {
                 Circle()
                     .fill(LinearGradient(
-                        colors: [Self.bodyTop, Self.bodyMid, Self.bodyBottom],
+                        colors: [Self.bodyTop, Color.accentColor, Self.bodyBottom],
                         startPoint: .top,
                         endPoint: .bottom
                     ))
@@ -55,7 +56,7 @@ struct PhotographicShutterButton: View {
                     .stroke(Color.white, lineWidth: 3)
                     .frame(width: 112, height: 112)
             )
-            .shadow(color: Self.bodyMid.opacity(0.45), radius: 12, x: 0, y: 6)
+            .shadow(color: Color.accentColor.opacity(0.45), radius: 12, x: 0, y: 6)
             .saturation(isBusy ? 0.7 : 1.0)
             .scaleEffect(isPressed && !reduceMotion ? 0.94 : 1.0)
             .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
@@ -70,5 +71,9 @@ struct PhotographicShutterButton: View {
                 .onChanged { _ in if !isBusy { isPressed = true } }
                 .onEnded { _ in isPressed = false }
         )
+        .onChange(of: isBusy) { _, newValue in
+            if newValue { isPressed = false }
+        }
+        .onDisappear { isPressed = false }
     }
 }
