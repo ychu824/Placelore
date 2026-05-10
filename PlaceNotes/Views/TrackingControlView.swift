@@ -13,6 +13,7 @@ struct TrackingControlView: View {
 
     @State private var showTrackingSheet = false
     @State private var showCameraPermissionAlert = false
+    @State private var showTrackingOffAlert = false
 
     var body: some View {
         NavigationStack {
@@ -26,12 +27,10 @@ struct TrackingControlView: View {
                     PolaroidDecorationBand(entries: Array(recentJournalEntries.prefix(20)))
 
                     PhotographicShutterButton(isBusy: isBusy) {
-                        Task {
-                            if await CameraPickerView.requestCameraPermission() {
-                                quickCapture.beginCapture()
-                            } else {
-                                showCameraPermissionAlert = true
-                            }
+                        if isTrackingActive {
+                            attemptCapture()
+                        } else {
+                            showTrackingOffAlert = true
                         }
                     }
 
@@ -102,6 +101,21 @@ struct TrackingControlView: View {
             } message: {
                 Text("Enable Camera access in Settings → Placelore to capture photos.")
             }
+            .alert("Tracking is off", isPresented: $showTrackingOffAlert) {
+                Button("Turn On Tracking") {
+                    switch trackingViewModel.trackingManager.state.status {
+                    case .paused: trackingViewModel.resume()
+                    case .disabled: trackingViewModel.enable()
+                    case .active: break
+                    }
+                    attemptCapture()
+                }
+                Button("Log Anyway", role: .cancel) {
+                    attemptCapture()
+                }
+            } message: {
+                Text("Your location won't be tracked precisely. Turn tracking on for accurate place logging.")
+            }
             .animation(
                 .easeInOut(duration: 0.3),
                 value: recentJournalEntries.prefix(2).map(\.id)
@@ -136,6 +150,20 @@ struct TrackingControlView: View {
         switch quickCapture.state {
         case .idle: return false
         default: return true
+        }
+    }
+
+    private var isTrackingActive: Bool {
+        trackingViewModel.trackingManager.state.status == .active
+    }
+
+    private func attemptCapture() {
+        Task {
+            if await CameraPickerView.requestCameraPermission() {
+                quickCapture.beginCapture()
+            } else {
+                showCameraPermissionAlert = true
+            }
         }
     }
 
