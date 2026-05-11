@@ -19,16 +19,36 @@ settings:
       VALIDATE_PRODUCT: YES
 
 schemes:
-  PlaceNotes:
+  PlaceNotes-Debug:
     build:
       targets:
         PlaceNotes: all
         PlaceNotesTests: [test]
     test:
+      config: Debug
       targets:
         - PlaceNotesTests
     run:
       config: Debug
+    profile:
+      config: Debug
+    analyze:
+      config: Debug
+    archive:
+      config: Debug
+
+  PlaceNotes-Release:
+    build:
+      targets:
+        PlaceNotes: all
+    run:
+      config: Release
+    profile:
+      config: Release
+    analyze:
+      config: Release
+    archive:
+      config: Release
 
 targets:
   PlaceNotes:
