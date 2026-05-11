@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7CC4F0"/>
+      <stop offset="100%" stop-color="#2D89D6"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#BFE3F7"/>
+      <stop offset="100%" stop-color="#5BB7E8"/>
+    </linearGradient>
+    <linearGradient id="metalA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4A6480"/>
+      <stop offset="100%" stop-color="#2A3A52"/>
+    </linearGradient>
+    <linearGradient id="metalB" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3E5570"/>
+      <stop offset="100%" stop-color="#22324A"/>
+    </linearGradient>
+    <linearGradient id="metalC" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5878A0"/>
+      <stop offset="100%" stop-color="#324966"/>
+    </linearGradient>
+    <filter id="polaroidShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dy="12"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="photoClip">
+      <rect x="-276" y="-336" width="552" height="552"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <g transform="translate(512 540) rotate(-8)">
+    <rect x="-300" y="-360" width="600" height="720" rx="20" fill="#FAFAFA" filter="url(#polaroidShadow)"/>
+    <g clip-path="url(#photoClip)">
+      <rect x="-276" y="-336" width="552" height="552" fill="url(#sky)"/>
+
+      <circle cx="180" cy="-250" r="40" fill="#FFE796"/>
+      <circle cx="180" cy="-250" r="30" fill="#FFD63F"/>
+
+      <g fill="#FFFFFF">
+        <ellipse cx="-170" cy="-250" rx="36" ry="12"/>
+        <ellipse cx="-140" cy="-244" rx="26" ry="10"/>
+        <ellipse cx="-190" cy="-244" rx="20" ry="8"/>
+        <ellipse cx="60"  cy="-290" rx="32" ry="11"/>
+        <ellipse cx="85"  cy="-282" rx="22" ry="9"/>
+        <ellipse cx="100" cy="-200" rx="24" ry="9"/>
+        <ellipse cx="120" cy="-194" rx="18" ry="7"/>
+      </g>
+
+      <rect x="-276" y="-10"  width="100" height="226" fill="url(#metalA)"/>
+      <rect x="-210" y="-90"  width="80"  height="306" fill="url(#metalB)"/>
+      <rect x="-150" y="-50"  width="110" height="266" fill="url(#metalA)"/>
+      <rect x="-70"  y="-160" width="90"  height="376" fill="#1E2C3F"/>
+      <rect x="10"   y="-100" width="100" height="316" fill="url(#metalB)"/>
+      <rect x="100"  y="-50"  width="90"  height="266" fill="url(#metalA)"/>
+      <rect x="180"  y="-20"  width="96"  height="236" fill="url(#metalB)"/>
+
+      <g fill="#7FA0C8" opacity="0.55">
+        <rect x="-260" y="20"  width="68" height="3"/>
+        <rect x="-260" y="60"  width="68" height="3"/>
+        <rect x="-260" y="100" width="68" height="3"/>
+        <rect x="-260" y="140" width="68" height="3"/>
+        <rect x="-260" y="180" width="68" height="3"/>
+
+        <rect x="-198" y="-60" width="58" height="3"/>
+        <rect x="-198" y="-20" width="58" height="3"/>
+        <rect x="-198" y="20"  width="58" height="3"/>
+        <rect x="-198" y="60"  width="58" height="3"/>
+        <rect x="-198" y="100" width="58" height="3"/>
+        <rect x="-198" y="140" width="58" height="3"/>
+        <rect x="-198" y="180" width="58" height="3"/>
+
+        <rect x="-140" y="-20" width="92" height="3"/>
+        <rect x="-140" y="20"  width="92" height="3"/>
+        <rect x="-140" y="60"  width="92" height="3"/>
+        <rect x="-140" y="100" width="92" height="3"/>
+        <rect x="-140" y="140" width="92" height="3"/>
+        <rect x="-140" y="180" width="92" height="3"/>
+
+        <rect x="-60" y="-130" width="74" height="3"/>
+        <rect x="-60" y="-90"  width="74" height="3"/>
+        <rect x="-60" y="-50"  width="74" height="3"/>
+        <rect x="-60" y="-10"  width="74" height="3"/>
+        <rect x="-60" y="30"   width="74" height="3"/>
+        <rect x="-60" y="70"   width="74" height="3"/>
+        <rect x="-60" y="110"  width="74" height="3"/>
+        <rect x="-60" y="150"  width="74" height="3"/>
+        <rect x="-60" y="190"  width="74" height="3"/>
+
+        <rect x="20" y="-70" width="84" height="3"/>
+        <rect x="20" y="-30" width="84" height="3"/>
+        <rect x="20" y="10"  width="84" height="3"/>
+        <rect x="20" y="50"  width="84" height="3"/>
+        <rect x="20" y="90"  width="84" height="3"/>
+        <rect x="20" y="130" width="84" height="3"/>
+        <rect x="20" y="170" width="84" height="3"/>
+
+        <rect x="110" y="-20" width="74" height="3"/>
+        <rect x="110" y="20"  width="74" height="3"/>
+        <rect x="110" y="60"  width="74" height="3"/>
+        <rect x="110" y="100" width="74" height="3"/>
+        <rect x="110" y="140" width="74" height="3"/>
+        <rect x="110" y="180" width="74" height="3"/>
+
+        <rect x="190" y="10"  width="80" height="3"/>
+        <rect x="190" y="50"  width="80" height="3"/>
+        <rect x="190" y="90"  width="80" height="3"/>
+        <rect x="190" y="130" width="80" height="3"/>
+        <rect x="190" y="170" width="80" height="3"/>
+      </g>
+
+      <rect x="-260" y="50"  width="70" height="166" fill="url(#metalC)"/>
+      <rect x="-185" y="0"   width="80" height="216" fill="url(#metalA)"/>
+      <rect x="-100" y="30"  width="70" height="186" fill="url(#metalC)"/>
+      <rect x="-30"  y="-40" width="80" height="256" fill="url(#metalA)"/>
+      <rect x="60"   y="10"  width="90" height="206" fill="url(#metalC)"/>
+      <rect x="160"  y="40"  width="70" height="176" fill="url(#metalA)"/>
+      <rect x="230"  y="60"  width="46" height="156" fill="url(#metalC)"/>
+
+      <rect x="-276" y="200" width="552" height="16" fill="#1A2638"/>
+
+      <g>
+        <rect x="-234" y="190" width="4" height="26" fill="#5C3A24"/>
+        <polygon points="-248,190 -218,190 -232,150" fill="#1F4D33"/>
+
+        <ellipse cx="-192" cy="208" rx="22" ry="9" fill="#2C5F3F"/>
+
+        <rect x="-152" y="188" width="4" height="28" fill="#5C3A24"/>
+        <circle cx="-150" cy="178" r="16" fill="#235A3E"/>
+
+        <ellipse cx="-110" cy="210" rx="24" ry="10" fill="#306B48"/>
+
+        <rect x="-72" y="180" width="4" height="36" fill="#5C3A24"/>
+        <polygon points="-86,180 -54,180 -70,138" fill="#173B27"/>
+
+        <ellipse cx="-30" cy="208" rx="22" ry="9" fill="#2C5F3F"/>
+
+        <rect x="10" y="186" width="4" height="30" fill="#5C3A24"/>
+        <circle cx="12" cy="176" r="18" fill="#235A3E"/>
+
+        <ellipse cx="60" cy="210" rx="28" ry="11" fill="#306B48"/>
+
+        <rect x="110" y="184" width="4" height="32" fill="#5C3A24"/>
+        <polygon points="124,184 96,184 110,144" fill="#1F4D33"/>
+
+        <ellipse cx="158" cy="210" rx="22" ry="9" fill="#2C5F3F"/>
+
+        <rect x="198" y="186" width="4" height="30" fill="#5C3A24"/>
+        <circle cx="200" cy="174" r="17" fill="#235A3E"/>
+
+        <ellipse cx="240" cy="208" rx="22" ry="9" fill="#306B48"/>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(770 130)">
+    <path d="M0,-72 C46,-72 72,-46 72,-12 C72,34 0,108 0,108 C0,108 -72,34 -72,-12 C-72,-46 -46,-72 0,-72 Z" fill="#E63946"/>
+    <circle cx="0" cy="-12" r="22" fill="#FFFFFF"/>
+  </g>
+</svg>
