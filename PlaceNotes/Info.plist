@@ -9,7 +9,7 @@
     <key>CFBundleDisplayName</key>
     <string>Placelore</string>
     <key>CFBundleIconName</key>
-    <string>AppIcon</string>
+    <string>AppIcon-Outdoor</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundlePackageType</key>
