@@ -143,6 +143,12 @@ struct PhotoThumbnailView: View {
 // MARK: - Photo Storage
 
 enum PhotoStorage {
+    private static let thumbnailCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 64
+        return cache
+    }()
+
     private static var photosDirectory: URL {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("JournalPhotos", isDirectory: true)
@@ -171,7 +177,12 @@ enum PhotoStorage {
     /// Decodes a downsampled UIImage from the saved JPEG without holding the
     /// full image in memory. `maxDimension` is in pixels — the longer side of
     /// the returned image will be at most this many pixels. Honors EXIF orientation.
+    /// Results are memoized in an in-memory cache keyed by filename + maxDimension.
     static func loadThumbnail(filename: String, maxDimension: CGFloat) -> UIImage? {
+        let key = "\(filename)|\(Int(maxDimension))" as NSString
+        if let cached = thumbnailCache.object(forKey: key) {
+            return cached
+        }
         let url = photosDirectory.appendingPathComponent(filename)
         let sourceOptions: [CFString: Any] = [
             kCGImageSourceShouldCache: false
@@ -188,12 +199,29 @@ enum PhotoStorage {
         guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOptions as CFDictionary) else {
             return nil
         }
-        return UIImage(cgImage: cgImage)
+        let image = UIImage(cgImage: cgImage)
+        thumbnailCache.setObject(image, forKey: key)
+        return image
+    }
+
+    /// Async wrapper that runs `loadThumbnail` off the main actor so the
+    /// ImageIO decode never blocks UI rendering.
+    static func loadThumbnailDetached(filename: String, maxDimension: CGFloat) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) {
+            loadThumbnail(filename: filename, maxDimension: maxDimension)
+        }.value
     }
 
     static func deleteImage(filename: String) {
         let url = photosDirectory.appendingPathComponent(filename)
         try? FileManager.default.removeItem(at: url)
+        invalidateThumbnailCache(filename: filename)
+    }
+
+    private static func invalidateThumbnailCache(filename: String) {
+        for dim in [120, 240, 400, 600, 800] {
+            thumbnailCache.removeObject(forKey: "\(filename)|\(dim)" as NSString)
+        }
     }
 
     /// Removes the entire JournalPhotos directory. Used by Settings → Clear All Data
@@ -201,5 +229,6 @@ enum PhotoStorage {
     static func deleteAll() {
         let dir = photosDirectory
         try? FileManager.default.removeItem(at: dir)
+        thumbnailCache.removeAllObjects()
     }
 }
