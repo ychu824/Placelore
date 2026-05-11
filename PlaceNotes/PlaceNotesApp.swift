@@ -28,27 +28,30 @@ struct PlaceNotesApp: App {
 
         let makeContainer = {
             let config = ModelConfiguration(url: storeURL)
-            return try ModelContainer(for: Place.self, Visit.self, CustomCategory.self, JournalEntry.self, RawLocationSample.self, configurations: config)
+            return try ModelContainer(
+                for: Schema(versionedSchema: PlaceNotesSchemaV1.self),
+                migrationPlan: PlaceNotesMigrationPlan.self,
+                configurations: config
+            )
         }
 
         let container: ModelContainer
         do {
             container = try makeContainer()
         } catch {
-            // Schema migration failed — delete the old store and retry.
-            // This is expected when new model fields are added during development.
-            logger.error("Store incompatible, resetting: \(error.localizedDescription, privacy: .public)")
+            #if DEBUG
+            logger.error("Store incompatible, resetting (DEBUG only): \(error.localizedDescription, privacy: .public)")
             Self.deleteStoreFiles(at: storeURL)
             UserDefaults.standard.set(false, forKey: "mockDataSeeded_debug")
 
             do {
                 container = try makeContainer()
             } catch {
-                // Unrecoverable: persistence layer cannot initialize even after a clean reset
-                // (e.g. disk full, corrupt FS). The app cannot function without a ModelContainer,
-                // so crashing with a descriptive message is the correct behavior.
                 fatalError("Failed to create ModelContainer after reset: \(error)")
             }
+            #else
+            fatalError("Failed to open ModelContainer in release build. Add a MigrationStage to PlaceNotesMigrationPlan instead of resetting user data: \(error)")
+            #endif
         }
         self.modelContainer = container
 

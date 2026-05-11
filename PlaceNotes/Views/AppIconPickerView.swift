@@ -51,7 +51,8 @@ struct AppIconPickerView: View {
 
     private func select(_ option: AppIconManager.Option) {
         selectedId = option.id
-        AppIconManager.setIcon(option) { error in
+        Task { @MainActor in
+            let error = await AppIconManager.setIcon(option)
             if error != nil {
                 selectedId = AppIconManager.currentOption.id
             }
