@@ -3,7 +3,7 @@ import os
 
 @MainActor
 enum AppIconManager {
-    private static let logger = Logger(subsystem: "dev.placelore.app", category: "AppIcon")
+    private nonisolated static let logger = Logger(subsystem: "dev.placelore.app", category: "AppIcon")
 
     struct Option: Identifiable, Hashable {
         let id: String
