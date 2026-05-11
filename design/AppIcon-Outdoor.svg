@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3FA66B"/>
+      <stop offset="100%" stop-color="#1B5C3A"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFD9A8"/>
+      <stop offset="55%" stop-color="#FFB87A"/>
+      <stop offset="100%" stop-color="#B7D7E8"/>
+    </linearGradient>
+    <linearGradient id="mountFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7C8FA8"/>
+      <stop offset="100%" stop-color="#5A6E8A"/>
+    </linearGradient>
+    <linearGradient id="mountMid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4A6079"/>
+      <stop offset="100%" stop-color="#2D425A"/>
+    </linearGradient>
+    <linearGradient id="mountNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2B4032"/>
+      <stop offset="100%" stop-color="#16261B"/>
+    </linearGradient>
+    <filter id="polaroidShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dy="12"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.22"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="photoClip">
+      <rect x="-276" y="-336" width="552" height="552"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <g transform="translate(512 540) rotate(-8)">
+    <rect x="-300" y="-360" width="600" height="720" rx="20" fill="#FAFAFA" filter="url(#polaroidShadow)"/>
+    <g clip-path="url(#photoClip)">
+      <rect x="-276" y="-336" width="552" height="552" fill="url(#sky)"/>
+
+      <circle cx="160" cy="-240" r="44" fill="#FFE49C" opacity="0.95"/>
+      <circle cx="160" cy="-240" r="30" fill="#FFC75F"/>
+
+      <g fill="#FFFFFF" opacity="0.85">
+        <ellipse cx="-150" cy="-260" rx="44" ry="10"/>
+        <ellipse cx="-120" cy="-252" rx="28" ry="8"/>
+        <ellipse cx="50"   cy="-300" rx="36" ry="9"/>
+      </g>
+
+      <polygon points="-276,40 -200,-110 -130,-30 -60,-160 30,-50 110,-180 200,-60 276,-120 276,216 -276,216"
+               fill="url(#mountFar)"/>
+      <polygon points="-276,40 -240,-30 -200,-110 -176,-70 -210,-40 -170,-10 -130,-30" fill="#FAFAFA" opacity="0.85"/>
+      <polygon points="-90,-130 -60,-160 -30,-120 -50,-100 -20,-70 30,-50" fill="#FAFAFA" opacity="0.85"/>
+      <polygon points="80,-150 110,-180 140,-140 120,-110 150,-90 200,-60" fill="#FAFAFA" opacity="0.85"/>
+
+      <polygon points="-276,100 -210,-30 -140,40 -70,-50 0,30 80,-60 160,40 230,-20 276,30 276,216 -276,216"
+               fill="url(#mountMid)"/>
+
+      <polygon points="-276,160 -200,60 -120,140 -40,40 50,150 130,60 220,150 276,100 276,216 -276,216"
+               fill="url(#mountNear)"/>
+
+      <ellipse cx="0" cy="216" rx="276" ry="10" fill="#16261B" opacity="0.6"/>
+
+      <g fill="#1F3A28">
+        <polygon points="-240,216 -226,170 -212,216"/>
+        <polygon points="-226,160 -216,130 -206,160"/>
+        <polygon points="-226,140 -218,118 -210,140"/>
+
+        <polygon points="-190,216 -174,160 -158,216"/>
+        <polygon points="-174,148 -162,118 -150,148"/>
+
+        <polygon points="-140,216 -126,178 -112,216"/>
+
+        <polygon points="-90,216 -72,158 -54,216"/>
+        <polygon points="-72,146 -58,114 -44,146"/>
+
+        <polygon points="-30,216 -16,170 -2,216"/>
+
+        <polygon points="30,216 48,158 66,216"/>
+        <polygon points="48,146 62,116 76,146"/>
+        <polygon points="48,130 60,104 72,130"/>
+
+        <polygon points="90,216 104,176 118,216"/>
+
+        <polygon points="140,216 160,154 180,216"/>
+        <polygon points="160,142 174,110 188,142"/>
+
+        <polygon points="200,216 214,176 228,216"/>
+
+        <polygon points="240,216 258,162 276,216"/>
+      </g>
+
+      <g fill="#2D1810">
+        <rect x="-227" y="200" width="3" height="20"/>
+        <rect x="-217" y="200" width="3" height="20"/>
+        <rect x="-175" y="200" width="3" height="20"/>
+        <rect x="-127" y="200" width="3" height="20"/>
+        <rect x="-73"  y="200" width="3" height="20"/>
+        <rect x="-17"  y="200" width="3" height="20"/>
+        <rect x="49"   y="200" width="3" height="20"/>
+        <rect x="105"  y="200" width="3" height="20"/>
+        <rect x="161"  y="200" width="3" height="20"/>
+        <rect x="215"  y="200" width="3" height="20"/>
+        <rect x="259"  y="200" width="3" height="20"/>
+      </g>
+    </g>
+  </g>
+
+  <g transform="translate(770 130)">
+    <path d="M0,-72 C46,-72 72,-46 72,-12 C72,34 0,108 0,108 C0,108 -72,34 -72,-12 C-72,-46 -46,-72 0,-72 Z" fill="#E63946"/>
+    <circle cx="0" cy="-12" r="22" fill="#FFFFFF"/>
+  </g>
+</svg>

@@ -112,6 +112,17 @@ struct SettingsView: View {
                             Text(mode.label).tag(mode)
                         }
                     }
+
+                    NavigationLink {
+                        AppIconPickerView()
+                    } label: {
+                        HStack {
+                            Text("App Icon")
+                            Spacer()
+                            Text(AppIconManager.currentOption.displayName)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 } header: {
                     Text("Appearance")
                 } footer: {
