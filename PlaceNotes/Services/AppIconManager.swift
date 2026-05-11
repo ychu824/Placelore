@@ -27,20 +27,18 @@ enum AppIconManager {
         return options.first { $0.alternateName == name } ?? options[0]
     }
 
-    static func setIcon(_ option: Option, completion: ((Error?) -> Void)? = nil) {
-        guard UIApplication.shared.supportsAlternateIcons else {
-            completion?(nil)
-            return
-        }
-        guard option.alternateName != UIApplication.shared.alternateIconName else {
-            completion?(nil)
-            return
-        }
-        UIApplication.shared.setAlternateIconName(option.alternateName) { error in
-            if let error {
-                logger.error("setAlternateIconName failed: \(error.localizedDescription)")
+    @discardableResult
+    static func setIcon(_ option: Option) async -> Error? {
+        guard UIApplication.shared.supportsAlternateIcons else { return nil }
+        guard option.alternateName != UIApplication.shared.alternateIconName else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            UIApplication.shared.setAlternateIconName(option.alternateName) { error in
+                if let error {
+                    logger.error("setAlternateIconName failed: \(error.localizedDescription)")
+                }
+                continuation.resume(returning: error)
             }
-            completion?(error)
         }
     }
 }
