@@ -112,13 +112,28 @@ struct FrequentPlacesMapView: View {
         places.map { "\($0.id)|\($0.displayName)|\($0.emoji)" }
     }
 
+    /// Builds a combined ranking list: frequent places from the viewModel plus
+    /// any place with a journal entry that didn't clear the frequency threshold
+    /// (e.g. photo quick-captures, which create a 60-second synthetic visit).
+    /// Without this, photo-logged places never appear on the map and the user
+    /// can't open their detail sheet to set a nickname.
+    private func mapRankings() -> [PlaceRanking] {
+        var rankings = Array(viewModel.monthlyPlaces.prefix(50))
+        let included = Set(rankings.map { $0.place.id })
+        let extras = places
+            .filter { !$0.journalEntries.isEmpty && !included.contains($0.id) }
+            .map { PlaceRanking(place: $0, qualifiedStays: 0, totalMinutes: 0) }
+        rankings.append(contentsOf: extras)
+        return rankings
+    }
+
     /// Rebuilds annotations only when region or data changes — not on every render.
     private func rebuildAnnotations() {
         guard !isRebuildingAnnotations else { return }
         isRebuildingAnnotations = true
         defer { isRebuildingAnnotations = false }
 
-        let rankings = Array(viewModel.monthlyPlaces.prefix(50))
+        let rankings = mapRankings()
         let newAnnotations: [any MapAnnotationItem]
         if let region = visibleRegion {
             let clusterRadius = region.span.latitudeDelta * 0.08
@@ -254,13 +269,15 @@ struct PlaceAnnotationView: View {
                     )
             }
 
-            Text("\(ranking.qualifiedStays)")
-                .font(.caption2.bold())
-                .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(flameIntensity == .none ? Color.accentColor : flameIntensity.glowColor)
-                .clipShape(Capsule())
+            if ranking.qualifiedStays > 0 {
+                Text("\(ranking.qualifiedStays)")
+                    .font(.caption2.bold())
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(flameIntensity == .none ? Color.accentColor : flameIntensity.glowColor)
+                    .clipShape(Capsule())
+            }
         }
     }
 }
