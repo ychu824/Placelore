@@ -32,9 +32,6 @@ final class QuickCaptureViewModel: ObservableObject {
     @Published var showCamera: Bool = false
     @Published private(set) var pendingPhotoAssetId: String?
 
-    /// True while photo save or place resolution is running. Used to show a
-    /// persistent banner so the user sees something is in flight after they
-    /// switch tabs away from the camera screen.
     var isWorkingInBackground: Bool {
         switch state {
         case .savingPhoto, .resolvingPlace: return true
@@ -42,14 +39,30 @@ final class QuickCaptureViewModel: ObservableObject {
         }
     }
 
+    /// Time budget for the background warm-up fetch kicked off when the camera opens.
+    /// Most users compose for >5s; keep this generous so a warm-up fix usually lands
+    /// before the shutter, but the shutter-time retry is the real safety net.
+    static let warmupTimeout: TimeInterval = 15
+
+    /// Time budget for the retry fetch issued at shutter time when warm-up failed.
+    /// Tuned to be long enough for a cold GPS fix but short enough that the user
+    /// doesn't see the saving spinner for an eternity.
+    static let shutterTimeout: TimeInterval = 10
+
     private let oneShot: LocationOneShotProviding
     private let context: ModelContext
+    private weak var locationManager: LocationManager?
     private var pendingLiveFix: CLLocation?
     private var locationFetchTask: Task<Void, Never>?
 
-    init(oneShot: LocationOneShotProviding, context: ModelContext) {
+    init(
+        oneShot: LocationOneShotProviding,
+        context: ModelContext,
+        locationManager: LocationManager? = nil
+    ) {
         self.oneShot = oneShot
         self.context = context
+        self.locationManager = locationManager
     }
 
     // MARK: - Flow
@@ -58,11 +71,12 @@ final class QuickCaptureViewModel: ObservableObject {
         guard state == .idle else { return }
         state = .acquiringLocation
         showCamera = true
+        pendingLiveFix = nil
         locationFetchTask?.cancel()
         oneShot.cancel()
         locationFetchTask = Task { [weak self] in
             guard let self else { return }
-            let loc = await self.oneShot.fetchOnce(timeout: 5)
+            let loc = await self.oneShot.fetchOnce(timeout: Self.warmupTimeout)
             if Task.isCancelled { return }
             await MainActor.run { self.pendingLiveFix = loc }
         }
@@ -138,8 +152,19 @@ final class QuickCaptureViewModel: ObservableObject {
     // MARK: - Private
 
     private func continueAfterPhoto(photoAssetId: String, exifLocation: CLLocation?) async {
-        let coord = QuickCaptureService.resolveCoordinate(liveFix: pendingLiveFix, exifLocation: exifLocation)
+        if pendingLiveFix == nil {
+            logger.info("Warm-up fix missing at shutter — retrying with \(Self.shutterTimeout)s budget")
+            let retry = await oneShot.fetchOnce(timeout: Self.shutterTimeout)
+            if let retry { pendingLiveFix = retry }
+        }
+        let cachedFix = locationManager?.lastFix
+        let coord = QuickCaptureService.resolveCoordinate(
+            liveFix: pendingLiveFix,
+            exifLocation: exifLocation,
+            cachedFix: cachedFix
+        )
         guard let coord else {
+            logger.info("No coordinate available — falling back to manual picker")
             await MainActor.run {
                 self.pendingPhotoAssetId = photoAssetId
                 self.state = .manualPickNeeded

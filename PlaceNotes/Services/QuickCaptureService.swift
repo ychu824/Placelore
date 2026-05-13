@@ -21,17 +21,36 @@ enum QuickCaptureService {
     /// matching radius, a "nearest" lookup could mis-attribute across neighbors.
     static let liveFixAccuracyThreshold: CLLocationDistance = 50
 
-    /// Resolves the coordinate for a quick capture per D1 priority:
+    /// Max age (seconds) for a cached `LocationManager.userLocation` fallback
+    /// to count as "recent enough" to attribute a photo to.
+    static let cachedFixMaxAge: TimeInterval = 120
+
+    /// Resolves the coordinate for a quick capture in priority order:
     /// 1. live fix if accuracy ≤ 50m
-    /// 2. EXIF location from the saved PHAsset
-    /// 3. nil (caller opens ManualPlacePickerView)
-    static func resolveCoordinate(liveFix: CLLocation?, exifLocation: CLLocation?) -> CLLocation? {
+    /// 2. EXIF location from the photo metadata
+    /// 3. recent passive-tracking fix (≤ 120s old, ≤ 50m accuracy)
+    /// 4. nil (caller opens ManualPlacePickerView)
+    static func resolveCoordinate(
+        liveFix: CLLocation?,
+        exifLocation: CLLocation?,
+        cachedFix: CLLocation? = nil,
+        now: Date = Date()
+    ) -> CLLocation? {
         if let live = liveFix,
            live.horizontalAccuracy >= 0,
            live.horizontalAccuracy <= liveFixAccuracyThreshold {
             return live
         }
-        return exifLocation
+        if let exif = exifLocation {
+            return exif
+        }
+        if let cached = cachedFix,
+           cached.horizontalAccuracy >= 0,
+           cached.horizontalAccuracy <= liveFixAccuracyThreshold,
+           now.timeIntervalSince(cached.timestamp) <= cachedFixMaxAge {
+            return cached
+        }
+        return nil
     }
 }
 

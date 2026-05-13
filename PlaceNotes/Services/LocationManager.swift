@@ -50,6 +50,10 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     @Published var currentVisit: Visit?
     @Published var userLocation: CLLocationCoordinate2D?
 
+    /// Last raw fix delivered by Core Location (coordinate, accuracy, timestamp).
+    /// Used by photo capture as a fallback when a fresh one-shot fails.
+    @Published var lastFix: CLLocation?
+
     var onVisitRecorded: ((Visit) -> Void)?
 
     // MARK: - Dwell detection
@@ -308,6 +312,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         }
 
         userLocation = location.coordinate
+        lastFix = location
 
         if let last = lastObservedSample,
            last.lat == location.coordinate.latitude,

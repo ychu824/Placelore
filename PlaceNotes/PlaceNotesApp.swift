@@ -131,7 +131,8 @@ struct PlaceNotesApp: App {
     private func makeQuickCaptureViewModel() -> QuickCaptureViewModel {
         QuickCaptureViewModel(
             oneShot: LocationOneShot(),
-            context: modelContainer.mainContext
+            context: modelContainer.mainContext,
+            locationManager: locationManager
         )
     }
 
