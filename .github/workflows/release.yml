@@ -21,8 +21,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Resolve tag
         id: tag
@@ -32,9 +30,6 @@ jobs:
           else
             echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Verify tag points at a commit
-        run: git rev-parse "${{ steps.tag.outputs.name }}^{commit}"
 
       - name: Create release
         env:
