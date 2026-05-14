@@ -53,6 +53,47 @@ final class QuickCaptureServiceTests: XCTestCase {
         XCTAssertEqual(pick?.coordinate.latitude, 3)
     }
 
+    func testCachedFixUsedWhenLiveAndExifAreUnavailable() {
+        let cached = loc(lat: 5, lon: 6, accuracy: 30, age: 10)
+        let pick = QuickCaptureService.resolveCoordinate(
+            liveFix: nil,
+            exifLocation: nil,
+            cachedFix: cached
+        )
+        XCTAssertEqual(pick?.coordinate.latitude, 5)
+    }
+
+    func testCachedFixIgnoredWhenStale() {
+        let cached = loc(lat: 5, lon: 6, accuracy: 30, age: QuickCaptureService.cachedFixMaxAge + 60)
+        let pick = QuickCaptureService.resolveCoordinate(
+            liveFix: nil,
+            exifLocation: nil,
+            cachedFix: cached
+        )
+        XCTAssertNil(pick)
+    }
+
+    func testCachedFixIgnoredWhenTooCoarse() {
+        let cached = loc(lat: 5, lon: 6, accuracy: 200, age: 5)
+        let pick = QuickCaptureService.resolveCoordinate(
+            liveFix: nil,
+            exifLocation: nil,
+            cachedFix: cached
+        )
+        XCTAssertNil(pick)
+    }
+
+    func testExifPreferredOverCachedFix() {
+        let exif = loc(lat: 3, lon: 4, accuracy: 20)
+        let cached = loc(lat: 5, lon: 6, accuracy: 20, age: 5)
+        let pick = QuickCaptureService.resolveCoordinate(
+            liveFix: nil,
+            exifLocation: exif,
+            cachedFix: cached
+        )
+        XCTAssertEqual(pick?.coordinate.latitude, 3)
+    }
+
     // MARK: - Merge decision (D5)
 
     func testMergesWithActiveVisitAtSamePlace() throws {

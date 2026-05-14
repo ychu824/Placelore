@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct TrackingControlView: View {
     @EnvironmentObject var trackingViewModel: TrackingViewModel
@@ -100,6 +101,26 @@ struct TrackingControlView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Enable Camera access in Settings → Placelore to capture photos.")
+            }
+            .alert("Location access needed", isPresented: Binding(
+                get: { trackingViewModel.trackingManager.isPermissionDenied },
+                set: { newValue in
+                    if !newValue {
+                        trackingViewModel.trackingManager.isPermissionDenied = false
+                    }
+                }
+            )) {
+                Button("Open Settings") {
+                    trackingViewModel.trackingManager.isPermissionDenied = false
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    trackingViewModel.trackingManager.isPermissionDenied = false
+                }
+            } message: {
+                Text("Placelore can't track your location until you allow access in Settings → Placelore → Location.")
             }
             .alert("Tracking is off", isPresented: $showTrackingOffAlert) {
                 Button("Turn On Tracking") {
