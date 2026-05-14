@@ -34,7 +34,7 @@ enum FlameIntensity {
         }
     }
 
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
         case .none:    return ""
         case .warm:    return "Warm"

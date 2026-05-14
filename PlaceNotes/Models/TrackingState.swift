@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum TrackingStatus: String, Codable {
     case active
@@ -42,7 +43,7 @@ enum PauseDuration: CaseIterable {
         }
     }
 
-    var label: String {
+    var label: LocalizedStringKey {
         switch self {
         case .oneHour: return "1 Hour"
         case .fourHours: return "4 Hours"

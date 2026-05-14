@@ -218,7 +218,7 @@ struct TrackingControlView: View {
                 VStack(spacing: 8) {
                     Text("Pause for…").font(.subheadline).foregroundStyle(.secondary)
                     HStack(spacing: 10) {
-                        ForEach(PauseDuration.allCases, id: \.label) { duration in
+                        ForEach(PauseDuration.allCases, id: \.self) { duration in
                             Button(duration.label) {
                                 trackingViewModel.pause(for: duration)
                                 showTrackingSheet = false

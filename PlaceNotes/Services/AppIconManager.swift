@@ -1,3 +1,4 @@
+import SwiftUI
 import UIKit
 import os
 
@@ -7,9 +8,12 @@ enum AppIconManager {
 
     struct Option: Identifiable, Hashable {
         let id: String
-        let displayName: String
+        let displayName: LocalizedStringKey
         let alternateName: String?
         let previewAsset: String
+
+        static func == (lhs: Option, rhs: Option) -> Bool { lhs.id == rhs.id }
+        func hash(into hasher: inout Hasher) { hasher.combine(id) }
     }
 
     static let options: [Option] = [

@@ -120,6 +120,15 @@ enum TimeOfDay: String, CaseIterable, Codable {
     case afternoon = "Afternoon"
     case evening = "Evening"
     case night = "Night"
+
+    var localizedName: String {
+        switch self {
+        case .morning:   return String(localized: "Morning")
+        case .afternoon: return String(localized: "Afternoon")
+        case .evening:   return String(localized: "Evening")
+        case .night:     return String(localized: "Night")
+        }
+    }
 }
 
 /// Confidence level for how reliably a visit was resolved to a place.

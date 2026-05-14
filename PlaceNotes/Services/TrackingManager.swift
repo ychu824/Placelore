@@ -63,7 +63,7 @@ final class TrackingManager: ObservableObject {
     }
 
     func pauseTracking(for duration: PauseDuration) {
-        logger.notice(">>> Pause tracking for \(duration.label) <<<")
+        logger.notice(">>> Pause tracking for \(duration.interval, format: .fixed(precision: 0))s <<<")
         pendingEnable = false
         state.status = .paused
         state.pauseResumeDate = Date().addingTimeInterval(duration.interval)

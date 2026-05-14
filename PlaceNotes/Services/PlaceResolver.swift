@@ -188,7 +188,7 @@ enum PlaceResolver {
                 ?? placemark.thoroughfare
                 ?? placemark.subLocality
                 ?? placemark.locality
-                ?? "Unknown Place"
+                ?? String(localized: "Unknown Place")
             let city = placemark.locality
             let state = placemark.administrativeArea
             logger.debug("Reverse geocoded (\(latitude), \(longitude)) -> \(name), city: \(city ?? "nil"), state: \(state ?? "nil")")
