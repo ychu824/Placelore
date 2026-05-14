@@ -19,17 +19,49 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Resolve tag
         id: tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "name=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ inputs.tag }}"
           else
-            echo "name=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            TAG="${GITHUB_REF#refs/tags/}"
           fi
+          VERSION="${TAG#v}"
+          echo "name=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sync MARKETING_VERSION to tag
+        if: steps.tag.outputs.prerelease == 'false'
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          CURRENT=$(awk -F'"' '/MARKETING_VERSION:/ {print $2; exit}' project.yml)
+          if [ -z "$CURRENT" ]; then
+            echo "Could not find MARKETING_VERSION in project.yml" >&2
+            exit 1
+          fi
+          if [ "$CURRENT" = "$VERSION" ]; then
+            echo "MARKETING_VERSION already $VERSION; no bump needed."
+            exit 0
+          fi
+          echo "Bumping MARKETING_VERSION: $CURRENT -> $VERSION"
+          sed -i -E "s/(MARKETING_VERSION: )\"[^\"]*\"/\\1\"$VERSION\"/" project.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add project.yml
+          git commit -m "chore: bump MARKETING_VERSION to $VERSION (${{ steps.tag.outputs.name }})"
+          git push origin main
 
       - name: Create release
         env:
