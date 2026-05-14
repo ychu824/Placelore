@@ -36,6 +36,17 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Verify tag exists (dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG does not exist in $GITHUB_REPOSITORY. Push the tag before dispatching." >&2
+            exit 1
+          fi
+
       - name: Checkout main
         uses: actions/checkout@v4
         with:
