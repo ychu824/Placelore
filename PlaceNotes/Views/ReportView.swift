@@ -52,7 +52,7 @@ struct ReportHeaderView: View {
                 StatCard(title: "Total Visits", value: "\(report.totalVisits)", icon: "mappin")
                 StatCard(title: "Total Time", value: formatMinutes(report.totalTrackedMinutes), icon: "clock")
                 StatCard(title: "Top Places", value: "\(report.topPlaces.count)", icon: "star.fill")
-                StatCard(title: "Most Active", value: report.preferredTimeOfDay.rawValue, icon: "sun.max.fill")
+                StatCard(title: "Most Active", value: report.preferredTimeOfDay.localizedName, icon: "sun.max.fill")
             }
         }
     }
@@ -102,7 +102,7 @@ struct TimeOfDayChartView: View {
             Chart {
                 ForEach(TimeOfDay.allCases, id: \.self) { time in
                     BarMark(
-                        x: .value("Time", time.rawValue),
+                        x: .value("Time", time.localizedName),
                         y: .value("Visits", report.visitsByTimeOfDay[time] ?? 0)
                     )
                     .foregroundStyle(Color.accentColor)

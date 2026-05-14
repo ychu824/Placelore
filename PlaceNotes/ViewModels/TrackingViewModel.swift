@@ -53,17 +53,17 @@ final class TrackingViewModel: ObservableObject {
     private func updateStatusText(_ state: TrackingState) {
         switch state.status {
         case .active:
-            statusText = "Tracking Active"
+            statusText = String(localized: "Tracking Active")
             pauseTimeRemainingText = nil
         case .disabled:
-            statusText = "Tracking Disabled"
+            statusText = String(localized: "Tracking Disabled")
             pauseTimeRemainingText = nil
         case .paused:
             if let remaining = state.pauseTimeRemaining, remaining > 0 {
-                statusText = "Tracking Paused"
+                statusText = String(localized: "Tracking Paused")
                 pauseTimeRemainingText = formatTimeRemaining(remaining)
             } else {
-                statusText = "Tracking Active"
+                statusText = String(localized: "Tracking Active")
                 pauseTimeRemainingText = nil
             }
         }
