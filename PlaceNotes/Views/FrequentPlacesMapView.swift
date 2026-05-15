@@ -265,6 +265,21 @@ struct PlaceAnnotationView: View {
         flameIntensity == .none ? 1 : 2
     }
 
+    private var fillGradient: LinearGradient {
+        let colors: [Color]
+        switch flameIntensity {
+        case .none:
+            colors = [.clear, .clear]
+        case .warm:
+            colors = [Color.yellow.opacity(0.30), Color.orange.opacity(0.35)]
+        case .hot:
+            colors = [Color.orange.opacity(0.40), Color(red: 1.0, green: 0.42, blue: 0).opacity(0.45)]
+        case .blazing:
+            colors = [Color.orange.opacity(0.45), Color.red.opacity(0.55)]
+        }
+        return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
     private var glowColor: Color {
         switch flameIntensity {
         case .none:    return .clear
@@ -301,7 +316,11 @@ struct PlaceAnnotationView: View {
         .padding(.vertical, 8)
         .padding(.leading, 10)
         .padding(.trailing, ranking.qualifiedStays > 0 ? 14 : 10)
-        .background(Capsule().fill(.ultraThinMaterial))
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(Capsule().fill(fillGradient))
+        )
         .overlay(Capsule().strokeBorder(borderGradient, lineWidth: borderWidth))
         .shadow(color: glowColor, radius: glowRadius)
         .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
