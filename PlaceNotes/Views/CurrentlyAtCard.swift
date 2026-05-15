@@ -23,6 +23,13 @@ enum CurrentlyAtFormatter {
     }
 
     static func priorVisits(_ count: Int) -> String {
-        return ""
+        let clamped = max(0, count)
+        if clamped == 0 {
+            return String(localized: "First visit here")
+        }
+        if clamped == 1 {
+            return String(format: String(localized: "%lld prior visit"), 1)
+        }
+        return String(format: String(localized: "%lld prior visits"), clamped)
     }
 }

@@ -44,4 +44,22 @@ final class CurrentlyAtCardFormattersTests: XCTestCase {
         let expected = String(format: String(localized: "Arrived %lldh %lldm ago"), 23, 59)
         XCTAssertEqual(CurrentlyAtFormatter.elapsed(arrivalDate: base, now: now), expected)
     }
+
+    func testPriorVisitsZeroReadsFirstVisit() {
+        XCTAssertEqual(CurrentlyAtFormatter.priorVisits(0), String(localized: "First visit here"))
+    }
+
+    func testPriorVisitsOneIsSingular() {
+        let expected = String(format: String(localized: "%lld prior visit"), 1)
+        XCTAssertEqual(CurrentlyAtFormatter.priorVisits(1), expected)
+    }
+
+    func testPriorVisitsManyIsPlural() {
+        let expected = String(format: String(localized: "%lld prior visits"), 22)
+        XCTAssertEqual(CurrentlyAtFormatter.priorVisits(22), expected)
+    }
+
+    func testPriorVisitsNegativeClampsToFirst() {
+        XCTAssertEqual(CurrentlyAtFormatter.priorVisits(-1), String(localized: "First visit here"))
+    }
 }
