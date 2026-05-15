@@ -234,49 +234,101 @@ struct ClusterItem: MapAnnotationItem {
     var totalVisits: Int {
         rankings.reduce(0) { $0 + $1.qualifiedStays }
     }
-
-    var topEmojis: String {
-        let emojis = rankings
-            .prefix(3)
-            .map { $0.place.emoji }
-        return emojis.joined()
-    }
 }
 
 // MARK: - Annotation Views
 
 struct PlaceAnnotationView: View {
     let ranking: PlaceRanking
+    @State private var pulse = false
 
     private var flameIntensity: FlameIntensity {
         FlameIntensity(visitCount: ranking.qualifiedStays)
     }
 
-    var body: some View {
-        VStack(spacing: 2) {
-            ZStack {
-                FlameEffectView(intensity: flameIntensity)
+    private var borderGradient: LinearGradient {
+        let colors: [Color]
+        switch flameIntensity {
+        case .none:
+            colors = [.white.opacity(0.6), .white.opacity(0.6)]
+        case .warm:
+            colors = [Color(red: 1.0, green: 0.8, blue: 0.4), .orange]
+        case .hot:
+            colors = [.orange, Color(red: 1.0, green: 0.42, blue: 0)]
+        case .blazing:
+            colors = [.orange, .red, Color(red: 0.78, green: 0, blue: 0)]
+        }
+        return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 
-                Text(ranking.place.emoji)
-                    .font(.title)
-                    .frame(width: 44, height: 44)
-                    .background(.white)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(flameIntensity.glowColor.opacity(flameIntensity == .none ? 0 : 0.6), lineWidth: 2)
-                    )
-            }
+    private var borderWidth: CGFloat {
+        flameIntensity == .none ? 1 : 2
+    }
+
+    private var fillGradient: LinearGradient {
+        let colors: [Color]
+        switch flameIntensity {
+        case .none:
+            colors = [.clear, .clear]
+        case .warm:
+            colors = [Color.yellow.opacity(0.30), Color.orange.opacity(0.35)]
+        case .hot:
+            colors = [Color.orange.opacity(0.40), Color(red: 1.0, green: 0.42, blue: 0).opacity(0.45)]
+        case .blazing:
+            colors = [Color.orange.opacity(0.45), Color.red.opacity(0.55)]
+        }
+        return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    private var glowColor: Color {
+        switch flameIntensity {
+        case .none:    return .clear
+        case .warm:    return .orange.opacity(0.45)
+        case .hot:     return .orange.opacity(0.60)
+        case .blazing: return .red.opacity(0.65)
+        }
+    }
+
+    private var glowRadius: CGFloat {
+        switch flameIntensity {
+        case .none:    return 0
+        case .warm:    return 8
+        case .hot:     return 12
+        case .blazing: return 18
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(ranking.place.emoji)
+                .font(.system(size: 18))
 
             if ranking.qualifiedStays > 0 {
+                Circle()
+                    .fill(.black.opacity(0.3))
+                    .frame(width: 4, height: 4)
+
                 Text("\(ranking.qualifiedStays)")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(flameIntensity == .none ? Color.accentColor : flameIntensity.glowColor)
-                    .clipShape(Capsule())
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.primary)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.leading, 10)
+        .padding(.trailing, ranking.qualifiedStays > 0 ? 14 : 10)
+        .background(
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .overlay(Capsule().fill(fillGradient))
+        )
+        .overlay(Capsule().strokeBorder(borderGradient, lineWidth: borderWidth))
+        .shadow(color: glowColor, radius: glowRadius)
+        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+        .scaleEffect(pulse ? 1.04 : 1.0)
+        .onAppear {
+            guard flameIntensity == .blazing else { return }
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                pulse = true
             }
         }
     }
@@ -285,27 +337,34 @@ struct PlaceAnnotationView: View {
 struct ClusterAnnotationView: View {
     let cluster: ClusterItem
 
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(cluster.topEmojis)
-                .font(.callout)
-                .frame(width: 52, height: 52)
-                .background(.white)
-                .clipShape(Circle())
-                .overlay(
-                    Circle()
-                        .strokeBorder(Color.accentColor.opacity(0.3), lineWidth: 2)
-                )
-                .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
+    private var topEmojis: String {
+        cluster.rankings.prefix(2).map { $0.place.emoji }.joined()
+    }
 
-            Text("\(cluster.rankings.count) places")
-                .font(.caption2.bold())
-                .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.accentColor)
-                .clipShape(Capsule())
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(topEmojis)
+                .font(.system(size: 18))
+                .tracking(-2)
+
+            Circle()
+                .fill(.black.opacity(0.3))
+                .frame(width: 4, height: 4)
+
+            Text("\(cluster.rankings.count)")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.primary)
         }
+        .padding(.vertical, 8)
+        .padding(.leading, 10)
+        .padding(.trailing, 14)
+        .background(
+            Capsule().fill(.ultraThinMaterial)
+        )
+        .overlay(
+            Capsule().strokeBorder(.white.opacity(0.6), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
     }
 }
 
