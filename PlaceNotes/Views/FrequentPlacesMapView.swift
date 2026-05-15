@@ -240,36 +240,57 @@ struct ClusterItem: MapAnnotationItem {
 
 struct PlaceAnnotationView: View {
     let ranking: PlaceRanking
+    @State private var pulse = false
 
     private var flameIntensity: FlameIntensity {
         FlameIntensity(visitCount: ranking.qualifiedStays)
     }
 
-    var body: some View {
-        VStack(spacing: 2) {
-            ZStack {
-                FlameEffectView(intensity: flameIntensity)
+    private var borderGradient: LinearGradient {
+        let colors: [Color]
+        switch flameIntensity {
+        case .none:
+            colors = [.white.opacity(0.6), .white.opacity(0.6)]
+        case .warm:
+            colors = [Color(red: 1.0, green: 0.8, blue: 0.4), .orange]
+        case .hot:
+            colors = [.orange, Color(red: 1.0, green: 0.42, blue: 0)]
+        case .blazing:
+            colors = [.orange, .red, Color(red: 0.78, green: 0, blue: 0)]
+        }
+        return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 
-                Text(ranking.place.emoji)
-                    .font(.title)
-                    .frame(width: 44, height: 44)
-                    .background(.white)
-                    .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(flameIntensity.glowColor.opacity(flameIntensity == .none ? 0 : 0.6), lineWidth: 2)
-                    )
-            }
+    private var borderWidth: CGFloat {
+        flameIntensity == .none ? 1 : 2
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(ranking.place.emoji)
+                .font(.system(size: 18))
 
             if ranking.qualifiedStays > 0 {
+                Circle()
+                    .fill(.black.opacity(0.3))
+                    .frame(width: 4, height: 4)
+
                 Text("\(ranking.qualifiedStays)")
-                    .font(.caption2.bold())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(flameIntensity == .none ? Color.accentColor : flameIntensity.glowColor)
-                    .clipShape(Capsule())
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.primary)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.leading, 10)
+        .padding(.trailing, ranking.qualifiedStays > 0 ? 14 : 10)
+        .background(Capsule().fill(.ultraThinMaterial))
+        .overlay(Capsule().strokeBorder(borderGradient, lineWidth: borderWidth))
+        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+        .scaleEffect(pulse ? 1.04 : 1.0)
+        .onAppear {
+            guard flameIntensity == .blazing else { return }
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                pulse = true
             }
         }
     }
