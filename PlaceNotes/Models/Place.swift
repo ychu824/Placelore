@@ -48,6 +48,10 @@ final class Place {
         qualifiedStays(minMinutes: minMinutes).reduce(0) { $0 + $1.durationMinutes }
     }
 
+    var priorVisitCount: Int {
+        max(0, visits.count - 1)
+    }
+
     /// Returns the emoji for this place, preferring the user's custom emoji over the category default.
     var emoji: String {
         if let customEmoji, !customEmoji.isEmpty {

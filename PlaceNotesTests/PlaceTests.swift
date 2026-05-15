@@ -119,4 +119,28 @@ final class PlaceTests: XCTestCase {
         let place = Place(name: "Unknown", latitude: 0, longitude: 0)
         XCTAssertEqual(place.emoji, PlaceCategorizer.emoji(for: nil))
     }
+
+    // MARK: - Prior Visit Count
+
+    func testPriorVisitCountWhenOnlyActiveVisit() {
+        let place = Place(name: "Cafe", latitude: 0, longitude: 0)
+        let active = Visit(arrivalDate: .now, departureDate: nil, place: place)
+        place.visits = [active]
+        XCTAssertEqual(place.priorVisitCount, 0)
+    }
+
+    func testPriorVisitCountWithMultipleVisits() {
+        let place = Place(name: "Cafe", latitude: 0, longitude: 0)
+        let visits = (0..<5).map { idx in
+            Visit(arrivalDate: Date(timeIntervalSince1970: TimeInterval(idx)), departureDate: nil, place: place)
+        }
+        place.visits = visits
+        XCTAssertEqual(place.priorVisitCount, 4)
+    }
+
+    func testPriorVisitCountClampsAtZero() {
+        let place = Place(name: "Empty", latitude: 0, longitude: 0)
+        place.visits = []
+        XCTAssertEqual(place.priorVisitCount, 0)
+    }
 }
