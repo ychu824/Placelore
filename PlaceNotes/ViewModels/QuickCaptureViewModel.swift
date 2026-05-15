@@ -53,6 +53,7 @@ final class QuickCaptureViewModel: ObservableObject {
     private let context: ModelContext
     private weak var locationManager: LocationManager?
     private var pendingLiveFix: CLLocation?
+    private var pendingKnownPlace: (placeID: PersistentIdentifier, visitID: PersistentIdentifier)?
     private var locationFetchTask: Task<Void, Never>?
 
     init(
@@ -82,6 +83,16 @@ final class QuickCaptureViewModel: ObservableObject {
         }
     }
 
+    func beginCaptureForKnownPlace(_ place: Place, visit: Visit) {
+        guard state == .idle else { return }
+        pendingKnownPlace = (place.persistentModelID, visit.persistentModelID)
+        state = .acquiringLocation
+        showCamera = true
+        pendingLiveFix = nil
+        locationFetchTask?.cancel()
+        oneShot.cancel()
+    }
+
     func photoCaptured(image: UIImage, exifLocation: CLLocation?) {
         state = .savingPhoto
         Task { [weak self] in
@@ -99,6 +110,7 @@ final class QuickCaptureViewModel: ObservableObject {
         locationFetchTask?.cancel()
         oneShot.cancel()
         pendingLiveFix = nil
+        pendingKnownPlace = nil
         pendingPhotoAssetId = nil
         showCamera = false
         state = .idle
@@ -152,6 +164,35 @@ final class QuickCaptureViewModel: ObservableObject {
     // MARK: - Private
 
     private func continueAfterPhoto(photoAssetId: String, exifLocation: CLLocation?) async {
+        if let pending = pendingKnownPlace {
+            await MainActor.run { self.state = .resolvingPlace }
+            let placeID = pending.placeID
+            let visitID = pending.visitID
+            await MainActor.run {
+                guard let place = self.context.model(for: placeID) as? Place,
+                      let visit = self.context.model(for: visitID) as? Visit else {
+                    logger.error("Known-place capture: refetch failed for \(String(describing: placeID))")
+                    self.pendingKnownPlace = nil
+                    self.state = .error(String(localized: "Couldn't attach photo to current place."))
+                    return
+                }
+                let entry = JournalEntry(date: Date(), photoAssetIdentifiers: [photoAssetId])
+                entry.place = place
+                entry.visit = visit
+                self.context.insert(entry)
+                try? self.context.save()
+                let payload = ToastPayload(
+                    kind: .merged,
+                    placeName: place.displayName,
+                    visitID: visit.id,
+                    journalEntryID: entry.id
+                )
+                self.pendingKnownPlace = nil
+                self.state = .done(payload)
+            }
+            return
+        }
+
         if pendingLiveFix == nil {
             logger.info("Warm-up fix missing at shutter — retrying with \(Self.shutterTimeout)s budget")
             let retry = await oneShot.fetchOnce(timeout: Self.shutterTimeout)
