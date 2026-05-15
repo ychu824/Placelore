@@ -265,6 +265,24 @@ struct PlaceAnnotationView: View {
         flameIntensity == .none ? 1 : 2
     }
 
+    private var glowColor: Color {
+        switch flameIntensity {
+        case .none:    return .clear
+        case .warm:    return .orange.opacity(0.45)
+        case .hot:     return .orange.opacity(0.60)
+        case .blazing: return .red.opacity(0.65)
+        }
+    }
+
+    private var glowRadius: CGFloat {
+        switch flameIntensity {
+        case .none:    return 0
+        case .warm:    return 8
+        case .hot:     return 12
+        case .blazing: return 18
+        }
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             Text(ranking.place.emoji)
@@ -285,6 +303,7 @@ struct PlaceAnnotationView: View {
         .padding(.trailing, ranking.qualifiedStays > 0 ? 14 : 10)
         .background(Capsule().fill(.ultraThinMaterial))
         .overlay(Capsule().strokeBorder(borderGradient, lineWidth: borderWidth))
+        .shadow(color: glowColor, radius: glowRadius)
         .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
         .scaleEffect(pulse ? 1.04 : 1.0)
         .onAppear {
