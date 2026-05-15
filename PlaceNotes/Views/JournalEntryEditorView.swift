@@ -7,6 +7,7 @@ struct JournalEntryEditorView: View {
 
     let place: Place
     var existingEntry: JournalEntry?
+    var visit: Visit? = nil
 
     @State private var title: String = ""
     @State private var bodyText: String = ""
@@ -147,6 +148,9 @@ struct JournalEntryEditorView: View {
                 photoAssetIdentifiers: photoFilenames
             )
             entry.place = place
+            if let visit {
+                entry.visit = visit
+            }
             modelContext.insert(entry)
         }
         try? modelContext.save()
