@@ -93,6 +93,35 @@ enum DebugSeed {
         try? context.save()
     }
 
+    @MainActor
+    static func seedOpenVisitNow(in context: ModelContext) {
+        let place = Place(
+            name: "Blue Bottle Coffee",
+            latitude: 37.776,
+            longitude: -122.423
+        )
+        context.insert(place)
+
+        let base = Date().addingTimeInterval(-30 * 24 * 3600)
+        for i in 0..<22 {
+            let arrival = base.addingTimeInterval(TimeInterval(i) * 24 * 3600)
+            let v = Visit(
+                arrivalDate: arrival,
+                departureDate: arrival.addingTimeInterval(45 * 60),
+                place: place
+            )
+            context.insert(v)
+        }
+
+        let active = Visit(
+            arrivalDate: Date().addingTimeInterval(-(3600 + 12 * 60)),
+            departureDate: nil,
+            place: place
+        )
+        context.insert(active)
+        try? context.save()
+    }
+
     // MARK: - Day 0 (golden path)
 
     @MainActor

@@ -204,6 +204,11 @@ struct SettingsView: View {
                         refreshRawSampleCount()
                         refreshStorageSize()
                     }
+                    Button("Seed Open Visit") {
+                        DebugSeed.seedOpenVisitNow(in: modelContext)
+                        refreshRawSampleCount()
+                        refreshStorageSize()
+                    }
                     Button(role: .destructive) {
                         DebugSeed.clearAllData(in: modelContext)
                         refreshRawSampleCount()
