@@ -65,6 +65,10 @@ struct SettingsView: View {
     @State private var exportData: Data = Data()
     @State private var showExporter = false
 
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -194,7 +198,7 @@ struct SettingsView: View {
                 }
 
                 Section("About") {
-                    LabeledContent("Version", value: "1.0.0")
+                    LabeledContent("Version", value: appVersion)
                 }
 
                 #if DEBUG
