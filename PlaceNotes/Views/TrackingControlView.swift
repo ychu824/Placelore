@@ -23,6 +23,8 @@ struct TrackingControlView: View {
                     trackingChip
                         .padding(.top, 8)
 
+                    CurrentlyAtCard()
+
                     Spacer()
 
                     PolaroidDecorationBand(entries: Array(recentJournalEntries.prefix(20)))
