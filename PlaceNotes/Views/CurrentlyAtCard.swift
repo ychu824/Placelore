@@ -58,7 +58,7 @@ struct CurrentlyAtCard: View {
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.5), lineWidth: 0.5)
+                .stroke(Color.primary.opacity(0.18), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 4)
         .padding(.horizontal)
