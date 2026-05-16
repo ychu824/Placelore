@@ -17,7 +17,6 @@ struct CurrentlyAtCard: View {
             if let visit = openVisits.first(where: { $0.arrivalDate > cutoff }),
                let place = visit.place {
                 cardBody(visit: visit, place: place, now: context.date)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
     }
@@ -40,10 +39,10 @@ struct CurrentlyAtCard: View {
                 .padding(.bottom, 12)
 
             HStack(spacing: 8) {
-                actionButton(title: "+ Note") {
+                actionButton(title: "+ Note", accessibilityLabel: "Add note") {
                     showNoteEditor = true
                 }
-                actionButton(title: "+ Photo") {
+                actionButton(title: "+ Photo", accessibilityLabel: "Add photo") {
                     quickCapture.beginCaptureForKnownPlace(place, visit: visit)
                 }
                 NavigationLink {
@@ -69,11 +68,12 @@ struct CurrentlyAtCard: View {
     }
 
     @ViewBuilder
-    private func actionButton(title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+    private func actionButton(title: LocalizedStringKey, accessibilityLabel: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             actionLabel(title: title)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(Text(accessibilityLabel))
     }
 
     @ViewBuilder
@@ -82,7 +82,7 @@ struct CurrentlyAtCard: View {
             .font(.caption.weight(.medium))
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
-            .background(Color.black.opacity(0.06), in: Capsule())
+            .background(Color.primary.opacity(0.08), in: Capsule())
             .foregroundStyle(.primary)
     }
 
