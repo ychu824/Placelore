@@ -62,6 +62,11 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     private var dwellSamples: [LocationSample] = []
     private var dwellStartDate: Date?
     private var lastRecordedDwellLocation: CLLocation?
+    /// `dwellStartDate` value at the moment a visit was recorded for the current
+    /// continuous dwell. Prevents repeated `recordDwellVisit` calls as new
+    /// samples / timer ticks fire after the threshold first trips. Cleared
+    /// whenever a fresh dwell begins (in `finalizeDwell`).
+    private var recordedDwellStartDate: Date?
     private var dwellTimer: Timer?
     private let settings: AppSettings
 
@@ -202,6 +207,10 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
                     return
                 }
             }
+            if recordedDwellStartDate == start {
+                logger.debug("Dwell timer tick — already recorded for this dwell, skipping")
+                return
+            }
             logger.notice("Dwell threshold reached via timer (\(Int(elapsed))s >= \(Int(threshold))s) — recording visit")
             let cluster = buildCluster(from: dwellSamples, startDate: start)
             recordDwellVisit(cluster: cluster, context: modelContext)
@@ -280,7 +289,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
                 addressOnly: useAddressFallback
             )
 
-            if isDuplicate(place: place, arrival: arrival) {
+            if isDuplicate(place: place, arrival: arrival, context: modelContext) {
                 logger.info("Skipping duplicate CLVisit for \(place.name)")
                 return
             }
@@ -401,7 +410,8 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
                 }
 
                 if let start = dwellStartDate,
-                   Date().timeIntervalSince(start) >= dwellThresholdSeconds {
+                   Date().timeIntervalSince(start) >= dwellThresholdSeconds,
+                   recordedDwellStartDate != start {
                     logger.notice("Dwell threshold met via location update — recording visit")
                     let cluster = buildCluster(from: dwellSamples, startDate: start)
                     recordDwellVisit(cluster: cluster, context: modelContext)
@@ -522,6 +532,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         }
 
         lastRecordedDwellLocation = clusterCenter
+        recordedDwellStartDate = cluster.startDate
 
         let confidence = computeConfidence(
             accuracy: cluster.medianAccuracy,
@@ -540,7 +551,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
                 addressOnly: useAddressFallback
             )
 
-            if isDuplicate(place: place, arrival: cluster.startDate) {
+            if isDuplicate(place: place, arrival: cluster.startDate, context: context) {
                 logger.info("Skipping duplicate dwell visit for \(place.name)")
                 return
             }
@@ -564,6 +575,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
               let modelContext else {
             dwellSamples = []
             dwellStartDate = nil
+            recordedDwellStartDate = nil
             return
         }
 
@@ -590,20 +602,43 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         dwellSamples = []
         dwellStartDate = nil
         lastRecordedDwellLocation = nil
+        recordedDwellStartDate = nil
     }
 
     // MARK: - Duplicate Detection
 
+    /// True if a visit already exists within the time window AND geographically
+    /// close enough that the two are likely the same stay resolved to different
+    /// POIs (e.g. centroid drift inside a mall picking a coffee shop vs the
+    /// main entry). Checks ALL Places, not just `place.visits`, because the
+    /// failure mode is precisely that the duplicate lands on a different
+    /// `Place` row.
     @MainActor
-    private func isDuplicate(place: Place, arrival: Date) -> Bool {
-        let threshold: TimeInterval = 600
-        let isDup = place.visits.contains { visit in
-            abs(visit.arrivalDate.timeIntervalSince(arrival)) < threshold
+    private func isDuplicate(place: Place, arrival: Date, context: ModelContext) -> Bool {
+        let timeWindow: TimeInterval = 600
+        let spatialThresholdMeters: Double = 150
+        let windowStart = arrival.addingTimeInterval(-timeWindow)
+        let windowEnd = arrival.addingTimeInterval(timeWindow)
+        let descriptor = FetchDescriptor<Visit>(
+            predicate: #Predicate<Visit> {
+                $0.arrivalDate >= windowStart && $0.arrivalDate <= windowEnd
+            }
+        )
+        let candidates = (try? context.fetch(descriptor)) ?? []
+        let newPlaceLoc = CLLocation(latitude: place.latitude, longitude: place.longitude)
+        for visit in candidates {
+            guard let other = visit.place else { continue }
+            if other.id == place.id {
+                logger.debug("Duplicate detected at same place \(place.name) near \(arrival)")
+                return true
+            }
+            let otherLoc = CLLocation(latitude: other.latitude, longitude: other.longitude)
+            if newPlaceLoc.distance(from: otherLoc) < spatialThresholdMeters {
+                logger.debug("Duplicate detected — \(place.name) is \(Int(newPlaceLoc.distance(from: otherLoc)))m from existing visit at \(other.name)")
+                return true
+            }
         }
-        if isDup {
-            logger.debug("Duplicate detected for \(place.name) near \(arrival)")
-        }
-        return isDup
+        return false
     }
 
 }
