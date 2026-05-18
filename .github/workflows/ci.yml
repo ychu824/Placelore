@@ -40,10 +40,21 @@ jobs:
         run: xcodegen generate
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+        run: |
+          set -euo pipefail
+          # Pick the highest-versioned Xcode_*.app installed on the runner.
+          # iOS 26 / Liquid Glass APIs (GlassEffectContainer, .buttonStyle(.glass),
+          # .glassEffect) only exist in Xcode 26+ SDKs — older Xcodes can see
+          # the iOS 26 simulator runtime via simctl but can't compile against it.
+          LATEST=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -1)
+          XCODE_APP="${LATEST:-/Applications/Xcode.app}"
+          echo "Selecting $XCODE_APP"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
 
       - name: Build and run tests
         run: |
+          set -eo pipefail
           # Find the first available iPhone simulator
           SIMULATOR=$(xcrun simctl list devices available -j | python3 -c "
           import json, sys
@@ -62,7 +73,7 @@ jobs:
             -destination "platform=iOS Simulator,name=$SIMULATOR,OS=latest" \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
-            | xcpretty --color || true
+            | xcpretty --color
 
       - name: Upload test results
         if: always()
