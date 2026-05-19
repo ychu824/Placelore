@@ -20,21 +20,21 @@ struct PlaceDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Place header
                 placeHeader
 
-                // Stats row
                 statsRow
 
                 Divider()
 
-                // Photos overview
+                PlaceStatsCharts(place: place)
+
                 if !allPhotoFilenames.isEmpty {
-                    photosSection
                     Divider()
+                    photosSection
                 }
 
-                // Journal entries
+                Divider()
+
                 journalSection
             }
             .padding()
@@ -83,6 +83,12 @@ struct PlaceDetailView: View {
                 Text(place.displayName)
                     .font(.title2.bold())
 
+                if let subtitle = visitsSinceSubtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 if place.nickname != nil {
                     Text(place.name)
                         .font(.caption)
@@ -105,12 +111,20 @@ struct PlaceDetailView: View {
         }
     }
 
+    private var visitsSinceSubtitle: String? {
+        guard !place.visits.isEmpty,
+              let firstVisit = place.visits.map(\.arrivalDate).min() else { return nil }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+        let count = place.visits.count
+        let plural = count == 1 ? "visit" : "visits"
+        return "\(count) \(plural) · since \(formatter.string(from: firstVisit))"
+    }
+
     // MARK: - Stats
 
     private var statsRow: some View {
         HStack(spacing: 0) {
-            statItem(value: "\(place.visits.count)", label: "Visits")
-            Spacer()
             statItem(value: formatDuration(place.totalTrackedMinutes), label: "Total Time")
             Spacer()
             statItem(value: "\(place.journalEntries.count)", label: "Entries")
