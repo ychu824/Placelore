@@ -1,9 +1,88 @@
 import XCTest
+import CoreLocation
 @testable import PlaceNotes
 
 final class CurrentlyAtCardFormattersTests: XCTestCase {
 
     private let base = Date(timeIntervalSince1970: 1_700_000_000)
+
+    // Microsoft Building 109 / Overlake area
+    private let placeLat = 47.6446
+    private let placeLon = -122.1390
+
+    func testIsUserAtPlaceTrueWhenUserLocationUnknown() {
+        XCTAssertTrue(
+            CurrentlyAtFormatter.isUserAtPlace(
+                userLocation: nil,
+                placeLatitude: placeLat,
+                placeLongitude: placeLon
+            )
+        )
+    }
+
+    func testIsUserAtPlaceTrueWhenUserIsAtPlace() {
+        let user = CLLocationCoordinate2D(latitude: placeLat, longitude: placeLon)
+        XCTAssertTrue(
+            CurrentlyAtFormatter.isUserAtPlace(
+                userLocation: user,
+                placeLatitude: placeLat,
+                placeLongitude: placeLon
+            )
+        )
+    }
+
+    func testIsUserAtPlaceTrueWhenWithinThreshold() {
+        // ~50m north of the place — well within the 150m default threshold.
+        let user = CLLocationCoordinate2D(
+            latitude: placeLat + 0.00045,
+            longitude: placeLon
+        )
+        XCTAssertTrue(
+            CurrentlyAtFormatter.isUserAtPlace(
+                userLocation: user,
+                placeLatitude: placeLat,
+                placeLongitude: placeLon
+            )
+        )
+    }
+
+    func testIsUserAtPlaceFalseWhenBeyondThreshold() {
+        // ~500m east of the place — well outside the 150m default threshold.
+        let user = CLLocationCoordinate2D(
+            latitude: placeLat,
+            longitude: placeLon + 0.0067
+        )
+        XCTAssertFalse(
+            CurrentlyAtFormatter.isUserAtPlace(
+                userLocation: user,
+                placeLatitude: placeLat,
+                placeLongitude: placeLon
+            )
+        )
+    }
+
+    func testIsUserAtPlaceHonorsCustomThreshold() {
+        // ~200m north — outside 150m default but inside an explicit 300m override.
+        let user = CLLocationCoordinate2D(
+            latitude: placeLat + 0.0018,
+            longitude: placeLon
+        )
+        XCTAssertFalse(
+            CurrentlyAtFormatter.isUserAtPlace(
+                userLocation: user,
+                placeLatitude: placeLat,
+                placeLongitude: placeLon
+            )
+        )
+        XCTAssertTrue(
+            CurrentlyAtFormatter.isUserAtPlace(
+                userLocation: user,
+                placeLatitude: placeLat,
+                placeLongitude: placeLon,
+                thresholdMeters: 300
+            )
+        )
+    }
 
     func testElapsedUnderOneMinuteReadsJustArrived() {
         let now = base.addingTimeInterval(45)
