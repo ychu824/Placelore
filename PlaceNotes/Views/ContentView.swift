@@ -34,6 +34,44 @@ struct ContentView: View {
                 }
         }
         .tint(.accentColor)
+        .fullScreenCover(isPresented: $quickCapture.showCamera) {
+            CameraPickerView(
+                onCaptured: { image, exif in
+                    quickCapture.showCamera = false
+                    quickCapture.photoCaptured(image: image, exifLocation: exif)
+                },
+                onCancelled: {
+                    quickCapture.showCamera = false
+                    quickCapture.cancelCapture()
+                }
+            )
+            .ignoresSafeArea()
+        }
+        .sheet(isPresented: Binding(
+            get: { quickCapture.state == .manualPickNeeded },
+            set: { newValue in
+                if !newValue, quickCapture.state == .manualPickNeeded {
+                    quickCapture.cancelCapture()
+                }
+            }
+        )) {
+            ManualPlacePickerView(
+                onPicked: { place in
+                    if let id = quickCapture.pendingPhotoAssetId {
+                        quickCapture.manualPlaceSelected(place, photoAssetId: id)
+                    }
+                },
+                onCancelled: { quickCapture.cancelCapture() }
+            )
+        }
+        .alert("Capture failed", isPresented: Binding(
+            get: { if case .error = quickCapture.state { return true } else { return false } },
+            set: { if !$0 { quickCapture.cancelCapture() } }
+        )) {
+            Button("OK") { quickCapture.cancelCapture() }
+        } message: {
+            if case let .error(msg) = quickCapture.state { Text(msg) }
+        }
         .overlay(alignment: .top) {
             if quickCapture.isWorkingInBackground {
                 BackgroundWorkPill(state: quickCapture.state)
@@ -41,7 +79,20 @@ struct ContentView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
+        .overlay(alignment: .bottom) {
+            if case let .done(payload) = quickCapture.state {
+                QuickCaptureToast(
+                    payload: payload,
+                    onUndo: { quickCapture.undoNewVisit(payload) },
+                    onSplit: { quickCapture.splitFromMerge(payload) },
+                    onDismiss: { quickCapture.cancelCapture() }
+                )
+                .padding(.bottom, 70)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .animation(.easeInOut(duration: 0.2), value: quickCapture.isWorkingInBackground)
+        .animation(.easeInOut(duration: 0.2), value: quickCapture.state)
     }
 }
 

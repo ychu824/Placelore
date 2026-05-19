@@ -18,87 +18,33 @@ struct TrackingControlView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                VStack(spacing: 28) {
-                    trackingChip
-                        .padding(.top, 8)
+            VStack(spacing: 28) {
+                trackingChip
+                    .padding(.top, 8)
 
-                    CurrentlyAtCard()
+                CurrentlyAtCard()
 
-                    Spacer()
+                Spacer()
 
-                    PolaroidDecorationBand(entries: Array(recentJournalEntries.prefix(20)))
+                PolaroidDecorationBand(entries: Array(recentJournalEntries.prefix(20)))
 
-                    PhotographicShutterButton(isBusy: isBusy) {
-                        if isTrackingActive {
-                            attemptCapture()
-                        } else {
-                            showTrackingOffAlert = true
-                        }
+                PhotographicShutterButton(isBusy: isBusy) {
+                    if isTrackingActive {
+                        attemptCapture()
+                    } else {
+                        showTrackingOffAlert = true
                     }
-
-                    Text("Tap to log this place")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
                 }
-                .padding()
 
-                if case let .done(payload) = quickCapture.state {
-                    VStack {
-                        Spacer()
-                        QuickCaptureToast(
-                            payload: payload,
-                            onUndo: { quickCapture.undoNewVisit(payload) },
-                            onSplit: { quickCapture.splitFromMerge(payload) },
-                            onDismiss: { quickCapture.cancelCapture() }
-                        )
-                        .padding(.bottom, 24)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                Text("Tap to log this place")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
             }
+            .padding()
             .navigationTitle("Placelore")
             .sheet(isPresented: $showTrackingSheet) { trackingSheet }
-            .fullScreenCover(isPresented: $quickCapture.showCamera) {
-                CameraPickerView(
-                    onCaptured: { image, exif in
-                        quickCapture.showCamera = false
-                        quickCapture.photoCaptured(image: image, exifLocation: exif)
-                    },
-                    onCancelled: {
-                        quickCapture.showCamera = false
-                        quickCapture.cancelCapture()
-                    }
-                )
-                .ignoresSafeArea()
-            }
-            .sheet(isPresented: Binding(
-                get: { quickCapture.state == .manualPickNeeded },
-                set: { newValue in
-                    if !newValue, quickCapture.state == .manualPickNeeded {
-                        quickCapture.cancelCapture()
-                    }
-                }
-            )) {
-                ManualPlacePickerView(
-                    onPicked: { place in
-                        if let id = quickCapture.pendingPhotoAssetId {
-                            quickCapture.manualPlaceSelected(place, photoAssetId: id)
-                        }
-                    },
-                    onCancelled: { quickCapture.cancelCapture() }
-                )
-            }
-            .alert("Capture failed", isPresented: Binding(
-                get: { if case .error = quickCapture.state { return true } else { return false } },
-                set: { if !$0 { quickCapture.cancelCapture() } }
-            )) {
-                Button("OK") { quickCapture.cancelCapture() }
-            } message: {
-                if case let .error(msg) = quickCapture.state { Text(msg) }
-            }
             .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
