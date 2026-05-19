@@ -22,14 +22,18 @@ struct TimeWindow: Equatable {
         return min(lengthDays, max(0, days))
     }
 
+    private static let scrubberDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
     var label: String {
         let cal = Calendar.current
         if cal.isDate(endDate, inSameDayAs: Date()) {
             let length = effectiveLengthDays
-            return String(format: NSLocalizedString("Last %d days", comment: "Scrubber window label, end=today"), length == 0 ? lengthDays : length)
+            return String(format: String(localized: "Last %d days"), length == 0 ? lengthDays : length)
         }
-        let fmt = DateFormatter()
-        fmt.dateFormat = "MMM d"
-        return "\(fmt.string(from: startDate)) – \(fmt.string(from: endDate))"
+        return "\(Self.scrubberDateFormatter.string(from: startDate)) – \(Self.scrubberDateFormatter.string(from: endDate))"
     }
 }
