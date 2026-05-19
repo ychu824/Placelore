@@ -51,57 +51,34 @@ struct CurrentlyAtCard: View {
 
     @ViewBuilder
     private func actionRow(visit: Visit, place: Place) -> some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 8) {
-                HStack(spacing: 8) {
-                    glassActionButton(title: "+ Note", accessibilityLabel: "Add note") {
-                        showNoteEditor = true
-                    }
-                    glassActionButton(title: "+ Photo", accessibilityLabel: "Add photo") {
-                        quickCapture.beginCaptureForKnownPlace(place, visit: visit)
-                    }
-                    NavigationLink {
-                        PlaceDetailView(place: place)
-                    } label: {
-                        actionLabelText("View place")
-                    }
-                    .buttonStyle(.glass)
-                }
+        HStack(spacing: 8) {
+            actionButton(title: "+ Note", accessibilityLabel: "Add note") {
+                showNoteEditor = true
             }
-        } else {
-            HStack(spacing: 8) {
-                legacyActionButton(title: "+ Note", accessibilityLabel: "Add note") {
-                    showNoteEditor = true
-                }
-                legacyActionButton(title: "+ Photo", accessibilityLabel: "Add photo") {
-                    quickCapture.beginCaptureForKnownPlace(place, visit: visit)
-                }
-                NavigationLink {
-                    PlaceDetailView(place: place)
-                } label: {
-                    actionLabelText("View place")
-                        .background(Color.primary.opacity(0.08), in: Capsule())
-                }
-                .buttonStyle(.plain)
+            actionButton(title: "+ Photo", accessibilityLabel: "Add photo") {
+                quickCapture.beginCaptureForKnownPlace(place, visit: visit)
             }
+            NavigationLink {
+                PlaceDetailView(place: place)
+            } label: {
+                actionLabelText("View place")
+                    .background(Color.primary.opacity(0.08), in: Capsule())
+                    .overlay(
+                        Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
         }
     }
 
-    @available(iOS 26.0, *)
     @ViewBuilder
-    private func glassActionButton(title: LocalizedStringKey, accessibilityLabel: LocalizedStringKey, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            actionLabelText(title)
-        }
-        .buttonStyle(.glass)
-        .accessibilityLabel(Text(accessibilityLabel))
-    }
-
-    @ViewBuilder
-    private func legacyActionButton(title: LocalizedStringKey, accessibilityLabel: LocalizedStringKey, action: @escaping () -> Void) -> some View {
+    private func actionButton(title: LocalizedStringKey, accessibilityLabel: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             actionLabelText(title)
                 .background(Color.primary.opacity(0.08), in: Capsule())
+                .overlay(
+                    Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text(accessibilityLabel))
@@ -113,7 +90,7 @@ struct CurrentlyAtCard: View {
             .font(.caption.weight(.medium))
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
-            .foregroundStyle(.primary)
+            .foregroundStyle(Color.accentColor)
     }
 
     private func metaLine(visit: Visit, place: Place, now: Date) -> String {
@@ -125,17 +102,16 @@ struct CurrentlyAtCard: View {
 
 private struct CardSurface: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        } else {
-            content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.primary.opacity(0.18), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.08), radius: 18, x: 0, y: 4)
-        }
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.35), radius: 18, x: 0, y: 6)
     }
 }
 
