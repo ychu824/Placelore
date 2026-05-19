@@ -78,6 +78,18 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     /// Last sample's identity used to suppress iOS re-deliveries of an unchanged fix.
     private var lastObservedSample: (lat: Double, lon: Double, accuracy: Double, timestamp: Date)?
 
+    /// Wall-clock time at which we last queued ANY raw sample (real or synthesized).
+    /// Drives the time-floor regulator: if the gap exceeds `sampleFloorIntervalSeconds`,
+    /// a synthesized sample is emitted using the last known fix.
+    private var lastSampleSavedAt: Date?
+
+    /// Repeating timer that enforces the time floor on raw-sample cadence.
+    private var sampleFloorTimer: Timer?
+
+    /// Time-floor target: persist at least one `RawLocationSample` every N seconds
+    /// even when the user is stationary and iOS has no new fix to deliver.
+    private let sampleFloorIntervalSeconds: TimeInterval = 10
+
     /// Window within which an identical-coord/accuracy sample is treated as a redelivery.
     private let duplicateSampleWindow: TimeInterval = 30
 
@@ -121,7 +133,10 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         super.init()
         clManager.delegate = self
         clManager.allowsBackgroundLocationUpdates = true
-        clManager.pausesLocationUpdatesAutomatically = true
+        // Keep the stream alive while tracking so the sample-floor timer can
+        // synthesize stationary samples on a regular cadence. iOS auto-pause
+        // would otherwise drop updates entirely during long stays.
+        clManager.pausesLocationUpdatesAutomatically = false
         clManager.activityType = .other
         clManager.desiredAccuracy = kCLLocationAccuracyBest
         clManager.distanceFilter = 10
@@ -146,7 +161,8 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         clManager.startMonitoringSignificantLocationChanges()
         clManager.startUpdatingLocation()
         startDwellTimer()
-        logger.notice("Monitoring started: visits + significant changes + location updates + dwell timer")
+        startSampleFloorTimer()
+        logger.notice("Monitoring started: visits + significant changes + location updates + dwell timer + sample floor timer")
     }
 
     func stopMonitoring() {
@@ -156,9 +172,12 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         clManager.stopUpdatingLocation()
         dwellTimer?.invalidate()
         dwellTimer = nil
+        sampleFloorTimer?.invalidate()
+        sampleFloorTimer = nil
         flushRawSamples()
         finalizeDwell()
         lastObservedSample = nil
+        lastSampleSavedAt = nil
         observedVisitEvents.removeAll()
         logger.notice("All monitoring stopped")
     }
@@ -177,6 +196,44 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             self?.checkDwellStatus()
         }
         logger.debug("Dwell timer started (30s interval)")
+    }
+
+    // MARK: - Sample Floor Timer
+
+    /// Tick at half the floor interval so the max gap between persisted samples
+    /// is bounded close to `sampleFloorIntervalSeconds` (and not 2x worst-case).
+    private func startSampleFloorTimer() {
+        sampleFloorTimer?.invalidate()
+        let tick = max(1.0, sampleFloorIntervalSeconds / 2)
+        sampleFloorTimer = Timer.scheduledTimer(withTimeInterval: tick, repeats: true) { [weak self] _ in
+            self?.emitFloorSampleIfNeeded()
+        }
+        logger.debug("Sample floor timer started (\(Int(tick))s tick, \(Int(self.sampleFloorIntervalSeconds))s floor)")
+    }
+
+    private func emitFloorSampleIfNeeded() {
+        guard let fix = lastFix else { return }
+        let now = Date()
+        if let last = lastSampleSavedAt, now.timeIntervalSince(last) < sampleFloorIntervalSeconds {
+            return
+        }
+
+        pendingRawSamples.append(PendingRawSample(
+            latitude: fix.coordinate.latitude,
+            longitude: fix.coordinate.longitude,
+            timestamp: now,
+            horizontalAccuracy: fix.horizontalAccuracy,
+            speed: fix.speed,
+            altitude: fix.altitude,
+            verticalAccuracy: fix.verticalAccuracy,
+            course: fix.course >= 0 ? fix.course : nil,
+            filterStatus: "synthesized-stationary"
+        ))
+        lastSampleSavedAt = now
+        if pendingRawSamples.count >= rawSampleBatchSize {
+            flushRawSamples()
+        }
+        logger.debug("Floor sample synthesized at (\(fix.coordinate.latitude), \(fix.coordinate.longitude))")
     }
 
     private func checkDwellStatus() {
@@ -370,6 +427,7 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             course: location.course >= 0 ? location.course : nil,
             filterStatus: filterStatus
         ))
+        lastSampleSavedAt = Date()
         if pendingRawSamples.count >= rawSampleBatchSize {
             flushRawSamples()
         }
