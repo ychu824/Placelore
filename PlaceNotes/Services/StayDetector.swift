@@ -140,4 +140,25 @@ enum StayDetector {
             return eventLoc.distance(from: centerLoc) > dwellRadiusMeters
         }
     }
+
+    // MARK: - Orphan Visit Detection
+
+    /// Whether the user has clearly moved away from a place far enough that an
+    /// open visit there should be closed even if the dwell-finalize path missed
+    /// it. Requires a trustworthy fix (accuracy in `(0, maxAcceptableAccuracy]`)
+    /// so noisy GPS jumps don't prematurely end a stay.
+    static func hasUserLeftPlace(
+        placeLatitude: Double,
+        placeLongitude: Double,
+        currentLatitude: Double,
+        currentLongitude: Double,
+        currentAccuracy: CLLocationAccuracy,
+        maxAcceptableAccuracy: CLLocationAccuracy,
+        thresholdMeters: Double
+    ) -> Bool {
+        guard currentAccuracy >= 0, currentAccuracy <= maxAcceptableAccuracy else { return false }
+        let placeLoc = CLLocation(latitude: placeLatitude, longitude: placeLongitude)
+        let currentLoc = CLLocation(latitude: currentLatitude, longitude: currentLongitude)
+        return currentLoc.distance(from: placeLoc) > thresholdMeters
+    }
 }

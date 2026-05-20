@@ -355,4 +355,73 @@ final class StayDetectorTests: XCTestCase {
         )
         XCTAssertFalse(result)
     }
+
+    // MARK: - hasUserLeftPlace
+
+    private let leftPlaceLat = 47.6446
+    private let leftPlaceLon = -122.1390
+
+    func testHasUserLeftPlaceFalseWhenSameSpot() {
+        XCTAssertFalse(StayDetector.hasUserLeftPlace(
+            placeLatitude: leftPlaceLat,
+            placeLongitude: leftPlaceLon,
+            currentLatitude: leftPlaceLat,
+            currentLongitude: leftPlaceLon,
+            currentAccuracy: 10,
+            maxAcceptableAccuracy: 100,
+            thresholdMeters: 250
+        ))
+    }
+
+    func testHasUserLeftPlaceFalseWhenWithinThreshold() {
+        // ~50m offset
+        XCTAssertFalse(StayDetector.hasUserLeftPlace(
+            placeLatitude: leftPlaceLat,
+            placeLongitude: leftPlaceLon,
+            currentLatitude: leftPlaceLat + 0.00045,
+            currentLongitude: leftPlaceLon,
+            currentAccuracy: 10,
+            maxAcceptableAccuracy: 100,
+            thresholdMeters: 250
+        ))
+    }
+
+    func testHasUserLeftPlaceTrueWhenBeyondThreshold() {
+        // ~500m offset
+        XCTAssertTrue(StayDetector.hasUserLeftPlace(
+            placeLatitude: leftPlaceLat,
+            placeLongitude: leftPlaceLon,
+            currentLatitude: leftPlaceLat,
+            currentLongitude: leftPlaceLon + 0.0067,
+            currentAccuracy: 15,
+            maxAcceptableAccuracy: 100,
+            thresholdMeters: 250
+        ))
+    }
+
+    func testHasUserLeftPlaceFalseWhenAccuracyTooPoor() {
+        // Far away, but accuracy is too noisy to trust.
+        XCTAssertFalse(StayDetector.hasUserLeftPlace(
+            placeLatitude: leftPlaceLat,
+            placeLongitude: leftPlaceLon,
+            currentLatitude: leftPlaceLat,
+            currentLongitude: leftPlaceLon + 0.0067,
+            currentAccuracy: 300,
+            maxAcceptableAccuracy: 100,
+            thresholdMeters: 250
+        ))
+    }
+
+    func testHasUserLeftPlaceFalseWhenAccuracyInvalid() {
+        // Negative accuracy means CoreLocation doesn't trust the fix.
+        XCTAssertFalse(StayDetector.hasUserLeftPlace(
+            placeLatitude: leftPlaceLat,
+            placeLongitude: leftPlaceLon,
+            currentLatitude: leftPlaceLat,
+            currentLongitude: leftPlaceLon + 0.0067,
+            currentAccuracy: -1,
+            maxAcceptableAccuracy: 100,
+            thresholdMeters: 250
+        ))
+    }
 }
