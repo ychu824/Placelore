@@ -57,6 +57,10 @@ struct MapContainerView: UIViewRepresentable {
         private var heatOverlay: HeatmapTileRenderer?
         private var pathOverlay: MKPolyline?
         private var annotationCache: [String: PlaceAnnotation] = [:]
+        private var lastHeatPoints: [WeightedPoint] = []
+        private var lastHeatStyle: UIUserInterfaceStyle = .unspecified
+        private var lastPathSamplesCount: Int = -1
+        private var lastPathLastTimestamp: Date?
 
         init(parent: MapContainerView) { self.parent = parent }
 
@@ -83,14 +87,20 @@ struct MapContainerView: UIViewRepresentable {
             placesInWindow: Set<UUID>,
             mode: OverlayMode
         ) {
+            guard mode == .pins else {
+                if !annotationCache.isEmpty {
+                    map.removeAnnotations(Array(annotationCache.values))
+                    annotationCache.removeAll()
+                }
+                return
+            }
             var fresh: [String: PlaceAnnotation] = [:]
             for ranking in rankings {
                 let id = ranking.place.id.uuidString
                 let annotation = annotationCache[id] ?? PlaceAnnotation(ranking: ranking)
                 annotation.ranking = ranking
-                annotation.dimmed = (mode == .pins) && !placesInWindow.contains(ranking.place.id)
+                annotation.dimmed = !placesInWindow.contains(ranking.place.id)
                 annotation.coordinate = ranking.place.coordinate
-                annotation.isHidden = (mode != .pins)
                 fresh[id] = annotation
             }
             let oldIDs = Set(annotationCache.keys)
@@ -102,7 +112,6 @@ struct MapContainerView: UIViewRepresentable {
             for id in newIDs.intersection(oldIDs) {
                 if let view = map.view(for: fresh[id]!) as? PlaceHostingAnnotationView {
                     view.configure(with: fresh[id]!.ranking, dimmed: fresh[id]!.dimmed)
-                    view.isHidden = fresh[id]!.isHidden
                 }
             }
             annotationCache = fresh
@@ -120,27 +129,42 @@ struct MapContainerView: UIViewRepresentable {
             // Heat
             let wantHeat = (mode == .heatmap && !weightedPoints.isEmpty)
             if wantHeat {
-                let newHeat = HeatmapTileRenderer(points: weightedPoints, style: style)
-                if let existing = heatOverlay { map.removeOverlay(existing) }
-                map.addOverlay(newHeat, level: .aboveLabels)
-                heatOverlay = newHeat
+                let unchanged = weightedPoints == lastHeatPoints && style == lastHeatStyle && heatOverlay != nil
+                if !unchanged {
+                    let newHeat = HeatmapTileRenderer(points: weightedPoints, style: style)
+                    if let existing = heatOverlay { map.removeOverlay(existing) }
+                    map.addOverlay(newHeat, level: .aboveLabels)
+                    heatOverlay = newHeat
+                    lastHeatPoints = weightedPoints
+                    lastHeatStyle = style
+                }
             } else if let existing = heatOverlay {
                 map.removeOverlay(existing)
                 heatOverlay = nil
+                lastHeatPoints = []
             }
             // Path
             let wantPath = (mode == .path && !pathSamples.isEmpty)
             if wantPath {
-                let coords = pathSamples.sorted { $0.timestamp < $1.timestamp }.map {
-                    CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                let sig = pathSamples.count
+                let lastTS = pathSamples.last?.timestamp
+                let unchanged = sig == lastPathSamplesCount && lastTS == lastPathLastTimestamp && pathOverlay != nil
+                if !unchanged {
+                    let coords = pathSamples.sorted { $0.timestamp < $1.timestamp }.map {
+                        CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                    }
+                    let newPath = MKPolyline(coordinates: coords, count: coords.count)
+                    if let existing = pathOverlay { map.removeOverlay(existing) }
+                    map.addOverlay(newPath)
+                    pathOverlay = newPath
+                    lastPathSamplesCount = sig
+                    lastPathLastTimestamp = lastTS
                 }
-                let newPath = MKPolyline(coordinates: coords, count: coords.count)
-                if let existing = pathOverlay { map.removeOverlay(existing) }
-                map.addOverlay(newPath)
-                pathOverlay = newPath
             } else if let existing = pathOverlay {
                 map.removeOverlay(existing)
                 pathOverlay = nil
+                lastPathSamplesCount = -1
+                lastPathLastTimestamp = nil
             }
         }
 
@@ -186,7 +210,6 @@ final class PlaceAnnotation: NSObject, MKAnnotation {
     @objc dynamic var coordinate: CLLocationCoordinate2D
     var ranking: PlaceRanking
     var dimmed: Bool = false
-    var isHidden: Bool = false
 
     init(ranking: PlaceRanking) {
         self.ranking = ranking

@@ -45,6 +45,20 @@ final class VisitWindowFilterTests: XCTestCase {
         XCTAssertEqual(filtered.count, 2)
     }
 
+    func testVisitsInWindowExcludesPastEnd() {
+        let p = makePlace()
+        let now = Date()
+        let inside = cal.date(byAdding: .second, value: -1, to: now)!
+        let after = cal.date(byAdding: .second, value: 1, to: now)!
+        _ = makeVisit(p, arrive: inside, depart: inside)
+        _ = makeVisit(p, arrive: after, depart: after)
+
+        let window = TimeWindow(endDate: now, lengthDays: 15, firstVisitDate: dayOffset(-60))
+        let all = try! context.fetch(FetchDescriptor<Visit>())
+        let filtered = VisitWindowFilter.visits(in: window, from: all)
+        XCTAssertEqual(filtered.count, 1)
+    }
+
     func testWeightedSumsDurationPerPlace() {
         let a = makePlace(lat: 37.78, lon: -122.41)
         let b = makePlace(lat: 37.79, lon: -122.42)

@@ -14,7 +14,7 @@ struct TimeWindowScrubber: View {
         Binding(
             get: {
                 let d = Calendar.current.dateComponents([.day], from: window.endDate, to: Date()).day ?? 0
-                return Double(d)
+                return Double(max(0, d))
             },
             set: { newValue in
                 let clamped = max(0, min(newValue, maxOffsetDays))

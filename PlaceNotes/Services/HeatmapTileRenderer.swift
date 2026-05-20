@@ -82,7 +82,7 @@ final class HeatmapTileRenderer: MKTileOverlay {
 
     private static func makePNG(pixels: [UInt8], width: Int, height: Int) -> Data? {
         let cs = CGColorSpaceCreateDeviceRGB()
-        let info: UInt32 = CGImageAlphaInfo.premultipliedLast.rawValue
+        let info: UInt32 = CGImageAlphaInfo.last.rawValue
         guard let provider = CGDataProvider(data: Data(pixels) as CFData) else { return nil }
         guard let cg = CGImage(
             width: width,
@@ -124,10 +124,13 @@ final class HeatmapTileRenderer: MKTileOverlay {
         return base * pow(2.0, referenceZoom - Double(z))
     }
 
-    /// Cap = max single-point weight * 1.2. Stable across tiles so the same
-    /// hot spot reads the same colour regardless of which tile renders it.
+    /// 95th-percentile weight. Stable across tiles so the same hot spot reads
+    /// the same color regardless of which tile renders it.
     private static func normalizationCap(for points: [WeightedPoint]) -> Double {
-        let maxWeight = points.map(\.weight).max() ?? 0
-        return maxWeight * 1.2
+        guard !points.isEmpty else { return 0 }
+        let sorted = points.map(\.weight).sorted()
+        let idx = max(0, min(sorted.count - 1, Int(Double(sorted.count - 1) * 0.95)))
+        let p95 = sorted[idx]
+        return max(p95, 0.0001)  // never zero (guards against divide-by-zero downstream)
     }
 }
