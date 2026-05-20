@@ -5,127 +5,54 @@ import UIKit
 
 struct FrequentPlacesMapView: View {
     @Query private var places: [Place]
+    @Query(sort: \Visit.arrivalDate) private var visits: [Visit]
+    @Query(sort: \RawLocationSample.timestamp) private var samples: [RawLocationSample]
     @StateObject private var viewModel = PlacesViewModel()
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var trackingViewModel: TrackingViewModel
+
+    @AppStorage("mapOverlayMode") private var overlayModeRaw: String = OverlayMode.heatmap.rawValue
+    @State private var window: TimeWindow = TimeWindow(
+        endDate: Date(),
+        lengthDays: 15,
+        firstVisitDate: nil
+    )
     @State private var selectedPlace: Place?
-    @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var hasInitializedCamera = false
-    @State private var visibleRegion: MKCoordinateRegion?
-    @State private var cachedAnnotations: [any MapAnnotationItem] = []
     @State private var showTrackingAlert = false
-    @Environment(\.scenePhase) private var scenePhase
+    @State private var showPathToast = false
+    @State private var pathToastShown = false
+    @State private var recenterTrigger = 0
 
-    var body: some View {
-        NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
-                if scenePhase != .background {
-                Map(position: $cameraPosition, selection: $selectedPlace) {
-                    UserAnnotation()
+    private var overlayMode: OverlayMode {
+        OverlayMode(rawValue: overlayModeRaw) ?? .heatmap
+    }
 
-                    ForEach(cachedAnnotations, id: \.id) { item in
-                        if let cluster = item as? ClusterItem {
-                            Annotation("", coordinate: cluster.coordinate) {
-                                ClusterAnnotationView(cluster: cluster)
-                            }
-                        } else if let single = item as? SingleItem {
-                            Annotation(single.ranking.place.displayName, coordinate: single.coordinate) {
-                                PlaceAnnotationView(ranking: single.ranking)
-                            }
-                            .tag(single.ranking.place)
-                        }
-                    }
-                }
-                .mapStyle(.standard(showsTraffic: false))
-                .mapControls {
-                    MapCompass()
-                    MapScaleView()
-                }
-                .onMapCameraChange(frequency: .onEnd) { context in
-                    let newRegion = context.region
-
-                    // Lock in a concrete region the first time MapKit reports one
-                    // so `.automatic` stops re-fitting whenever the annotation set
-                    // changes. Without this, every rebuild shifts the auto-fit,
-                    // which shifts the cluster radius, which shifts the annotation
-                    // set — a feedback loop that pegs the main thread on tab entry.
-                    if !hasInitializedCamera {
-                        hasInitializedCamera = true
-                        cameraPosition = .region(newRegion)
-                    }
-
-                    if let old = visibleRegion {
-                        let spanTolerance = max(old.span.latitudeDelta * 0.02, 0.0001)
-                        let latSame = abs(old.span.latitudeDelta - newRegion.span.latitudeDelta) < spanTolerance
-                        let lonSame = abs(old.span.longitudeDelta - newRegion.span.longitudeDelta) < spanTolerance
-                        let centerLatSame = abs(old.center.latitude - newRegion.center.latitude) < spanTolerance
-                        let centerLonSame = abs(old.center.longitude - newRegion.center.longitude) < spanTolerance
-                        if latSame && lonSame && centerLatSame && centerLonSame {
-                            return
-                        }
-                    }
-                    visibleRegion = newRegion
-                    rebuildAnnotations()
-                }
-                }
-
-                // Current location button
-                Button {
-                    goToCurrentLocation()
-                } label: {
-                    Image(systemName: "location.fill")
-                        .font(.title3)
-                        .padding(12)
-                        .background(.regularMaterial)
-                        .clipShape(Circle())
-                        .shadow(radius: 2)
-                }
-                .padding(.trailing, 16)
-                .padding(.bottom, 24)
-            }
-            .sheet(item: $selectedPlace) { place in
-                PlaceDetailSheet(place: place) {
-                    selectedPlace = nil
-                    viewModel.refresh(places: places)
-                    rebuildAnnotations()
-                }
-                .presentationDetents([.medium])
-            }
-            .navigationTitle("Map")
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                viewModel.refresh(places: places)
-                rebuildAnnotations()
-            }
-            .onChange(of: placesDisplayKey) { _, _ in
-                viewModel.refresh(places: places)
-                rebuildAnnotations()
-            }
-            .alert("Tracking Disabled", isPresented: $showTrackingAlert) {
-                Button("Enable Tracking") {
-                    trackingViewModel.enable()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Enable tracking to see your current location on the map.")
-            }
+    private func setOverlayMode(_ mode: OverlayMode) {
+        overlayModeRaw = mode.rawValue
+        if mode == .path && window.effectiveLengthDays > 7 && !pathToastShown {
+            showPathToast = true
+            pathToastShown = true
         }
     }
 
-    // MARK: - Clustering
-
-    /// Captures display-affecting properties so onChange fires on rename / category
-    /// edits — `[Place]` alone compares by reference and stays "equal" after a rename.
-    private var placesDisplayKey: [String] {
-        places.map { "\($0.id)|\($0.displayName)|\($0.emoji)" }
+    private var windowVisits: [Visit] {
+        VisitWindowFilter.visits(in: window, from: visits)
     }
 
-    /// Builds a combined ranking list: frequent places from the viewModel plus
-    /// any place with a journal entry that didn't clear the frequency threshold
-    /// (e.g. photo quick-captures, which create a 60-second synthetic visit).
-    /// Without this, photo-logged places never appear on the map and the user
-    /// can't open their detail sheet to set a nickname.
-    private func mapRankings() -> [PlaceRanking] {
+    private var weightedPoints: [WeightedPoint] {
+        VisitWindowFilter.weighted(windowVisits)
+    }
+
+    private var pathSamples: [RawLocationSample] {
+        guard overlayMode == .path else { return [] }
+        return VisitWindowFilter.samples(in: window, from: samples, capDays: 7)
+    }
+
+    private var placesInWindow: Set<UUID> {
+        Set(windowVisits.compactMap { $0.place?.id })
+    }
+
+    private var rankings: [PlaceRanking] {
         var rankings = Array(viewModel.monthlyPlaces.prefix(50))
         let included = Set(rankings.map { $0.place.id })
         let extras = places
@@ -135,76 +62,129 @@ struct FrequentPlacesMapView: View {
         return rankings
     }
 
-    /// Rebuilds annotations only when region or data changes — not on every render.
-    private func rebuildAnnotations() {
-        let rankings = mapRankings()
-        let newAnnotations: [any MapAnnotationItem]
-        if let region = visibleRegion {
-            let clusterRadius = region.span.latitudeDelta * 0.08
-            newAnnotations = clusterItems(from: rankings, radius: clusterRadius)
-        } else {
-            newAnnotations = rankings.map { SingleItem(ranking: $0) }
-        }
-
-        // Only update if annotation IDs actually changed — avoids triggering
-        // a Map re-layout that would fire onMapCameraChange again.
-        let oldIDs = cachedAnnotations.map(\.id)
-        let newIDs = newAnnotations.map(\.id)
-        if oldIDs != newIDs {
-            cachedAnnotations = newAnnotations
-        }
+    private var chipText: String {
+        let n = windowVisits.count
+        return String(format: String(localized: "%d visits · %@"), n, window.label)
     }
 
-    private func clusterItems(from rankings: [PlaceRanking], radius: Double) -> [any MapAnnotationItem] {
-        var used = Set<UUID>()
-        var result: [any MapAnnotationItem] = []
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 8) {
+                modePicker
+                ZStack(alignment: .topLeading) {
+                    MapContainerView(
+                        overlayMode: overlayMode,
+                        window: window,
+                        weightedPoints: weightedPoints,
+                        pathSamples: pathSamples,
+                        rankings: rankings,
+                        placesInWindow: placesInWindow,
+                        userLocation: locationManager.userLocation,
+                        onSelectPlace: { selectedPlace = $0 },
+                        recenterTrigger: $recenterTrigger
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
 
-        for ranking in rankings {
-            guard !used.contains(ranking.id) else { continue }
+                    floatingChip
+                        .padding(12)
 
-            // Find nearby rankings within cluster radius
-            var group = [ranking]
-            used.insert(ranking.id)
-
-            for other in rankings {
-                guard !used.contains(other.id) else { continue }
-                let latDiff = abs(ranking.place.latitude - other.place.latitude)
-                let lonDiff = abs(ranking.place.longitude - other.place.longitude)
-                if latDiff < radius && lonDiff < radius {
-                    group.append(other)
-                    used.insert(other.id)
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            recenterButton
+                                .padding(.trailing, 16)
+                                .padding(.bottom, 16)
+                        }
+                    }
                 }
-            }
 
-            if group.count == 1 {
-                result.append(SingleItem(ranking: ranking))
-            } else {
-                let avgLat = group.reduce(0.0) { $0 + $1.place.latitude } / Double(group.count)
-                let avgLon = group.reduce(0.0) { $0 + $1.place.longitude } / Double(group.count)
-                result.append(ClusterItem(
-                    coordinate: CLLocationCoordinate2D(latitude: avgLat, longitude: avgLon),
-                    rankings: group
-                ))
+                if overlayMode == .heatmap {
+                    HeatmapLegendView()
+                }
+
+                TimeWindowScrubber(
+                    window: $window,
+                    firstVisitDate: visits.first?.arrivalDate
+                )
+            }
+            .padding(.horizontal, 4)
+            .navigationTitle("Map")
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(item: $selectedPlace) { place in
+                PlaceDetailSheet(place: place) {
+                    selectedPlace = nil
+                    viewModel.refresh(places: places)
+                }
+                .presentationDetents([.medium])
+            }
+            .alert("Path shows last 7 days only", isPresented: $showPathToast) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Narrow the time window to 7 days or less to see the full path.")
+            }
+            .alert("Tracking Disabled", isPresented: $showTrackingAlert) {
+                Button("Enable Tracking") { trackingViewModel.enable() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Enable tracking to see your current location on the map.")
+            }
+            .onAppear {
+                viewModel.refresh(places: places)
+                window.firstVisitDate = visits.first?.arrivalDate
+            }
+            .onChange(of: visits.first?.arrivalDate) { _, newDate in
+                window.firstVisitDate = newDate
             }
         }
-
-        return result
     }
 
-    private func goToCurrentLocation() {
-        guard trackingViewModel.trackingManager.state.status != .disabled else {
-            showTrackingAlert = true
-            return
-        }
+    // MARK: - Sub-views
 
-        if let coordinate = locationManager.userLocation {
-            withAnimation {
-                cameraPosition = .region(MKCoordinateRegion(
-                    center: coordinate,
-                    latitudinalMeters: 500,
-                    longitudinalMeters: 500
-                ))
+    private var modePicker: some View {
+        Picker("Overlay", selection: Binding(
+            get: { overlayMode },
+            set: { setOverlayMode($0) }
+        )) {
+            ForEach(OverlayMode.allCases) { mode in
+                Label(mode.label, systemImage: mode.sfSymbol).tag(mode)
             }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, 4)
+    }
+
+    private var floatingChip: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(LinearGradient(
+                    colors: [.yellow, .red],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+                .frame(width: 10, height: 10)
+            Text(chipText)
+                .font(.caption.weight(.semibold))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.regularMaterial, in: Capsule())
+    }
+
+    private var recenterButton: some View {
+        Button {
+            if trackingViewModel.trackingManager.state.status == .disabled {
+                showTrackingAlert = true
+            } else {
+                recenterTrigger &+= 1
+            }
+        } label: {
+            Image(systemName: "location.fill")
+                .font(.title3)
+                .padding(12)
+                .background(.regularMaterial)
+                .clipShape(Circle())
+                .shadow(radius: 2)
         }
     }
 }
