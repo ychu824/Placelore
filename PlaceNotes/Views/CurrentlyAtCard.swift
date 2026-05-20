@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct CurrentlyAtCard: View {
     @Query(
@@ -9,13 +10,19 @@ struct CurrentlyAtCard: View {
     ) private var openVisits: [Visit]
 
     @EnvironmentObject private var quickCapture: QuickCaptureViewModel
+    @EnvironmentObject private var locationManager: LocationManager
     @State private var showNoteEditor = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let cutoff = context.date.addingTimeInterval(-48 * 3600)
             if let visit = openVisits.first(where: { $0.arrivalDate > cutoff }),
-               let place = visit.place {
+               let place = visit.place,
+               CurrentlyAtFormatter.isUserAtPlace(
+                   userLocation: locationManager.userLocation,
+                   placeLatitude: place.latitude,
+                   placeLongitude: place.longitude
+               ) {
                 cardBody(visit: visit, place: place, now: context.date)
             }
         }
@@ -116,6 +123,26 @@ private struct CardSurface: ViewModifier {
 }
 
 enum CurrentlyAtFormatter {
+    /// Maximum distance (meters) the user can be from a place before the
+    /// "You're at" card is hidden. Slightly larger than `LocationManager`'s
+    /// 80m dwell radius to absorb GPS noise without flickering.
+    static let presenceThresholdMeters: CLLocationDistance = 150
+
+    /// Whether the user is close enough to the place to still be considered
+    /// "at" it. Returns true when the user's location is unknown so the card
+    /// still renders before the first fix arrives.
+    static func isUserAtPlace(
+        userLocation: CLLocationCoordinate2D?,
+        placeLatitude: Double,
+        placeLongitude: Double,
+        thresholdMeters: CLLocationDistance = presenceThresholdMeters
+    ) -> Bool {
+        guard let userLocation else { return true }
+        let user = CLLocation(latitude: userLocation.latitude, longitude: userLocation.longitude)
+        let place = CLLocation(latitude: placeLatitude, longitude: placeLongitude)
+        return user.distance(from: place) <= thresholdMeters
+    }
+
     static func elapsed(arrivalDate: Date, now: Date) -> String {
         let total = max(0, Int(now.timeIntervalSince(arrivalDate)))
         if total < 60 {

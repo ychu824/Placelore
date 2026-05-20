@@ -110,6 +110,16 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     /// Distance (meters) the user must move before we consider them "left".
     private let dwellRadiusMeters: Double = 80
 
+    /// Distance (meters) from a place at which an open visit is force-closed
+    /// even if the dwell-finalize path missed the departure. Wider than the
+    /// dwell radius so transient GPS jumps don't prematurely end a stay.
+    private let orphanVisitCloseRadiusMeters: Double = 250
+
+    /// Maximum horizontal accuracy (meters) to trust a fix for closing an
+    /// orphan open visit. Looser than the dwell-collection filter so a fix
+    /// that's clearly far away can still trigger a close.
+    private let maxAccuracyForOrphanClose: CLLocationAccuracy = 100
+
     /// Maximum horizontal accuracy to accept a sample (meters).
     /// Samples noisier than this are dropped.
     private let maxAcceptableAccuracy: CLLocationAccuracy = 65
@@ -358,6 +368,12 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             modelContext.insert(visit)
             try? modelContext.save()
 
+            closeOlderOpenVisits(
+                excludingPlaceID: place.id,
+                departureDate: arrival,
+                context: modelContext
+            )
+
             currentVisit = visit
             onVisitRecorded?(visit)
             logger.notice("Recorded CLVisit at \(place.name) (confidence: \(confidence.rawValue), accuracy: \(Int(accuracy))m)")
@@ -394,6 +410,8 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             location.horizontalAccuracy,
             location.timestamp
         )
+
+        closeStaleOpenVisits(currentLocation: location, context: modelContext)
 
         // Step 1: Filter noisy / stale samples
         let isAccurate = location.horizontalAccuracy >= 0 && location.horizontalAccuracy <= maxAcceptableAccuracy
@@ -621,10 +639,90 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
             context.insert(visit)
             try? context.save()
 
+            closeOlderOpenVisits(
+                excludingPlaceID: place.id,
+                departureDate: cluster.startDate,
+                context: context
+            )
+
             currentVisit = visit
             onVisitRecorded?(visit)
             let stayMinutes = Int(elapsed / 60)
             logger.notice("VISIT RECORDED: \(place.name) (confidence: \(confidence.rawValue), accuracy: \(Int(cluster.medianAccuracy))m, spread: \(Int(cluster.spreadMeters))m, stayed \(stayMinutes) min)")
+        }
+    }
+
+    /// Close any prior open visit whose place is different from the
+    /// newly-recorded one and whose arrival predates it. Maintains the
+    /// "user is at one place at a time" invariant when the regular
+    /// dwell-finalize path missed a departure.
+    @MainActor
+    private func closeOlderOpenVisits(
+        excludingPlaceID: UUID,
+        departureDate: Date,
+        context: ModelContext
+    ) {
+        let cutoff = departureDate
+        let descriptor = FetchDescriptor<Visit>(
+            predicate: #Predicate<Visit> {
+                $0.departureDate == nil && $0.arrivalDate < cutoff
+            }
+        )
+        guard let openVisits = try? context.fetch(descriptor) else { return }
+
+        var closedAny = false
+        for visit in openVisits {
+            guard let place = visit.place, place.id != excludingPlaceID else { continue }
+            visit.departureDate = departureDate
+            closedAny = true
+            logger.notice("Closed prior open visit at \(place.name) — superseded by new visit at \(departureDate)")
+        }
+        if closedAny {
+            try? context.save()
+        }
+    }
+
+    /// Safety net: close any open visit whose place is now far from the user's
+    /// current location. The dwell-finalize path can miss this when iOS pauses
+    /// or throttles location updates during a long stay and the dwell buffer
+    /// loses coherence by the time movement resumes.
+    private func closeStaleOpenVisits(currentLocation: CLLocation, context: ModelContext) {
+        let placeLat = currentLocation.coordinate.latitude
+        let placeLon = currentLocation.coordinate.longitude
+        let accuracy = currentLocation.horizontalAccuracy
+        let departureDate = currentLocation.timestamp
+        let closeRadius = orphanVisitCloseRadiusMeters
+        let maxAccuracy = maxAccuracyForOrphanClose
+
+        Task { @MainActor in
+            let descriptor = FetchDescriptor<Visit>(
+                predicate: #Predicate { $0.departureDate == nil }
+            )
+            guard let openVisits = try? context.fetch(descriptor), !openVisits.isEmpty else { return }
+
+            var closedAny = false
+            for visit in openVisits {
+                guard let place = visit.place else { continue }
+                let hasLeft = StayDetector.hasUserLeftPlace(
+                    placeLatitude: place.latitude,
+                    placeLongitude: place.longitude,
+                    currentLatitude: placeLat,
+                    currentLongitude: placeLon,
+                    currentAccuracy: accuracy,
+                    maxAcceptableAccuracy: maxAccuracy,
+                    thresholdMeters: closeRadius
+                )
+                guard hasLeft, departureDate > visit.arrivalDate else { continue }
+                visit.departureDate = departureDate
+                closedAny = true
+                let distance = CLLocation(latitude: place.latitude, longitude: place.longitude)
+                    .distance(from: CLLocation(latitude: placeLat, longitude: placeLon))
+                logger.notice("Closed stale open visit at \(place.name) — user is \(Int(distance))m away")
+            }
+
+            if closedAny {
+                try? context.save()
+            }
         }
     }
 
