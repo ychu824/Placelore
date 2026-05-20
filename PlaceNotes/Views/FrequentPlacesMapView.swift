@@ -10,10 +10,10 @@ struct FrequentPlacesMapView: View {
     @EnvironmentObject private var trackingViewModel: TrackingViewModel
     @State private var selectedPlace: Place?
     @State private var cameraPosition: MapCameraPosition = .automatic
+    @State private var hasInitializedCamera = false
     @State private var visibleRegion: MKCoordinateRegion?
     @State private var cachedAnnotations: [any MapAnnotationItem] = []
     @State private var showTrackingAlert = false
-    @State private var isRebuildingAnnotations = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -43,9 +43,17 @@ struct FrequentPlacesMapView: View {
                 }
                 .onMapCameraChange(frequency: .onEnd) { context in
                     let newRegion = context.region
-                    // Skip rebuild if the region hasn't changed meaningfully — this
-                    // breaks the feedback loop where annotation updates nudge the
-                    // camera, which triggers another rebuild, and so on.
+
+                    // Lock in a concrete region the first time MapKit reports one
+                    // so `.automatic` stops re-fitting whenever the annotation set
+                    // changes. Without this, every rebuild shifts the auto-fit,
+                    // which shifts the cluster radius, which shifts the annotation
+                    // set — a feedback loop that pegs the main thread on tab entry.
+                    if !hasInitializedCamera {
+                        hasInitializedCamera = true
+                        cameraPosition = .region(newRegion)
+                    }
+
                     if let old = visibleRegion {
                         let spanTolerance = max(old.span.latitudeDelta * 0.02, 0.0001)
                         let latSame = abs(old.span.latitudeDelta - newRegion.span.latitudeDelta) < spanTolerance
@@ -85,7 +93,7 @@ struct FrequentPlacesMapView: View {
             }
             .navigationTitle("Map")
             .navigationBarTitleDisplayMode(.inline)
-            .onAppear {
+            .task {
                 viewModel.refresh(places: places)
                 rebuildAnnotations()
             }
@@ -129,10 +137,6 @@ struct FrequentPlacesMapView: View {
 
     /// Rebuilds annotations only when region or data changes — not on every render.
     private func rebuildAnnotations() {
-        guard !isRebuildingAnnotations else { return }
-        isRebuildingAnnotations = true
-        defer { isRebuildingAnnotations = false }
-
         let rankings = mapRankings()
         let newAnnotations: [any MapAnnotationItem]
         if let region = visibleRegion {
