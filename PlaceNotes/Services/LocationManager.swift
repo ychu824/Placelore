@@ -771,6 +771,17 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     /// `Place` row.
     @MainActor
     private func isDuplicate(place: Place, arrival: Date, context: ModelContext) -> Bool {
+        let placeID = place.id
+        let openDescriptor = FetchDescriptor<Visit>(
+            predicate: #Predicate<Visit> { $0.departureDate == nil }
+        )
+        if let openVisits = try? context.fetch(openDescriptor) {
+            for visit in openVisits where visit.place?.id == placeID && visit.arrivalDate < arrival {
+                logger.debug("Duplicate detected — open visit at \(place.name) since \(visit.arrivalDate)")
+                return true
+            }
+        }
+
         let timeWindow: TimeInterval = 600
         let spatialThresholdMeters: Double = 150
         let windowStart = arrival.addingTimeInterval(-timeWindow)
