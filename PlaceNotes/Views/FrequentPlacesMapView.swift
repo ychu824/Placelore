@@ -6,7 +6,6 @@ import UIKit
 struct FrequentPlacesMapView: View {
     @Query private var places: [Place]
     @Query(sort: \Visit.arrivalDate) private var visits: [Visit]
-    @Query(sort: \RawLocationSample.timestamp) private var samples: [RawLocationSample]
     @StateObject private var viewModel = PlacesViewModel()
     @EnvironmentObject private var locationManager: LocationManager
     @EnvironmentObject private var trackingViewModel: TrackingViewModel
@@ -43,11 +42,6 @@ struct FrequentPlacesMapView: View {
         VisitWindowFilter.weighted(windowVisits)
     }
 
-    private var pathSamples: [RawLocationSample] {
-        guard overlayMode == .path else { return [] }
-        return VisitWindowFilter.samples(in: window, from: samples, capDays: 7)
-    }
-
     private var placesInWindow: Set<UUID> {
         Set(windowVisits.compactMap { $0.place?.id })
     }
@@ -72,17 +66,22 @@ struct FrequentPlacesMapView: View {
             VStack(spacing: 8) {
                 modePicker
                 ZStack(alignment: .topLeading) {
-                    MapContainerView(
-                        overlayMode: overlayMode,
+                    MapPathSamplesProvider(
                         window: window,
-                        weightedPoints: weightedPoints,
-                        pathSamples: pathSamples,
-                        rankings: rankings,
-                        placesInWindow: placesInWindow,
-                        userLocation: locationManager.userLocation,
-                        onSelectPlace: { selectedPlace = $0 },
-                        recenterTrigger: $recenterTrigger
-                    )
+                        isPathMode: overlayMode == .path
+                    ) { pathSamples in
+                        MapContainerView(
+                            overlayMode: overlayMode,
+                            window: window,
+                            weightedPoints: weightedPoints,
+                            pathSamples: pathSamples,
+                            rankings: rankings,
+                            placesInWindow: placesInWindow,
+                            userLocation: locationManager.userLocation,
+                            onSelectPlace: { selectedPlace = $0 },
+                            recenterTrigger: $recenterTrigger
+                        )
+                    }
                     .clipShape(RoundedRectangle(cornerRadius: 16))
 
                     floatingChip
@@ -186,6 +185,39 @@ struct FrequentPlacesMapView: View {
                 .clipShape(Circle())
                 .shadow(radius: 2)
         }
+    }
+}
+
+private struct MapPathSamplesProvider<Content: View>: View {
+    @Query private var samples: [RawLocationSample]
+    private let content: ([RawLocationSample]) -> Content
+
+    init(
+        window: TimeWindow,
+        isPathMode: Bool,
+        @ViewBuilder content: @escaping ([RawLocationSample]) -> Content
+    ) {
+        self.content = content
+
+        let capStart = Calendar.current.date(
+            byAdding: .day,
+            value: -7,
+            to: window.endDate
+        ) ?? window.endDate
+        let start = isPathMode ? max(window.startDate, capStart) : Date.distantFuture
+        let end = isPathMode ? window.endDate : Date.distantPast
+        _samples = Query(
+            filter: #Predicate<RawLocationSample> {
+                $0.timestamp >= start
+                && $0.timestamp <= end
+                && $0.filterStatus != "rejected-accuracy"
+            },
+            sort: [SortDescriptor(\.timestamp)]
+        )
+    }
+
+    var body: some View {
+        content(samples)
     }
 }
 
