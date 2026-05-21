@@ -36,6 +36,10 @@ enum VisitWindowFilter {
     ) -> [RawLocationSample] {
         let capStart = Calendar.current.date(byAdding: .day, value: -capDays, to: window.endDate) ?? window.endDate
         let effectiveStart = max(window.startDate, capStart)
-        return all.filter { $0.timestamp >= effectiveStart && $0.timestamp <= window.endDate }
+        return all.filter {
+            $0.timestamp >= effectiveStart
+            && $0.timestamp <= window.endDate
+            && $0.filterStatus != "rejected-accuracy"
+        }
     }
 }

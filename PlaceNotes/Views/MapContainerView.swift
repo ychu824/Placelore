@@ -36,6 +36,13 @@ struct MapContainerView: UIViewRepresentable {
             placesInWindow: placesInWindow,
             style: map.traitCollection.userInterfaceStyle
         )
+        context.coordinator.performInitialFitIfNeeded(
+            map: map,
+            weightedPoints: weightedPoints,
+            rankings: rankings,
+            pathSamples: pathSamples,
+            userLocation: userLocation
+        )
         if context.coordinator.lastRecenterTrigger != recenterTrigger,
            let coord = userLocation {
             map.setRegion(
@@ -55,12 +62,13 @@ struct MapContainerView: UIViewRepresentable {
         var lastRecenterTrigger = 0
         private var currentMode: OverlayMode = .heatmap
         private var heatOverlay: HeatmapTileRenderer?
-        private var pathOverlay: MKPolyline?
+        private var pathOverlays: [MKPolyline] = []
         private var annotationCache: [String: PlaceAnnotation] = [:]
         private var lastHeatPoints: [WeightedPoint] = []
         private var lastHeatStyle: UIUserInterfaceStyle = .unspecified
         private var lastPathSamplesCount: Int = -1
         private var lastPathLastTimestamp: Date?
+        private var hasPerformedInitialFit = false
 
         init(parent: MapContainerView) { self.parent = parent }
 
@@ -77,6 +85,35 @@ struct MapContainerView: UIViewRepresentable {
             syncAnnotations(map: map, rankings: rankings, placesInWindow: placesInWindow, mode: mode)
             syncOverlays(map: map, mode: mode, weightedPoints: weightedPoints, pathSamples: pathSamples, style: style)
             currentMode = mode
+        }
+
+        func performInitialFitIfNeeded(
+            map: MKMapView,
+            weightedPoints: [WeightedPoint],
+            rankings: [PlaceRanking],
+            pathSamples: [RawLocationSample],
+            userLocation: CLLocationCoordinate2D?
+        ) {
+            guard !hasPerformedInitialFit else { return }
+            var coords: [CLLocationCoordinate2D] = []
+            coords.append(contentsOf: weightedPoints.map(\.coordinate))
+            coords.append(contentsOf: rankings.map { $0.place.coordinate })
+            if let first = pathSamples.first {
+                coords.append(CLLocationCoordinate2D(latitude: first.latitude, longitude: first.longitude))
+            }
+            if let last = pathSamples.last {
+                coords.append(CLLocationCoordinate2D(latitude: last.latitude, longitude: last.longitude))
+            }
+            if let user = userLocation { coords.append(user) }
+            guard !coords.isEmpty else { return }
+            var rect = MKMapRect.null
+            for c in coords {
+                let p = MKMapPoint(c)
+                rect = rect.union(MKMapRect(origin: p, size: MKMapSize(width: 0, height: 0)))
+            }
+            let padding = UIEdgeInsets(top: 60, left: 40, bottom: 80, right: 40)
+            map.setVisibleMapRect(rect, edgePadding: padding, animated: false)
+            hasPerformedInitialFit = true
         }
 
         // MARK: Annotations
@@ -148,21 +185,29 @@ struct MapContainerView: UIViewRepresentable {
             if wantPath {
                 let sig = pathSamples.count
                 let lastTS = pathSamples.last?.timestamp
-                let unchanged = sig == lastPathSamplesCount && lastTS == lastPathLastTimestamp && pathOverlay != nil
+                let unchanged = sig == lastPathSamplesCount && lastTS == lastPathLastTimestamp && !pathOverlays.isEmpty
                 if !unchanged {
-                    let coords = pathSamples.sorted { $0.timestamp < $1.timestamp }.map {
-                        CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                    if !pathOverlays.isEmpty {
+                        map.removeOverlays(pathOverlays)
+                        pathOverlays.removeAll()
                     }
-                    let newPath = MKPolyline(coordinates: coords, count: coords.count)
-                    if let existing = pathOverlay { map.removeOverlay(existing) }
-                    map.addOverlay(newPath)
-                    pathOverlay = newPath
+                    let sorted = pathSamples.sorted { $0.timestamp < $1.timestamp }
+                    let segments = TrajectoryBuilder.splitIntoSegments(sorted, maxGapSeconds: 600)
+                    for seg in segments {
+                        guard seg.count >= 2 else { continue }
+                        let coords = seg.map {
+                            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
+                        }
+                        let line = MKPolyline(coordinates: coords, count: coords.count)
+                        map.addOverlay(line)
+                        pathOverlays.append(line)
+                    }
                     lastPathSamplesCount = sig
                     lastPathLastTimestamp = lastTS
                 }
-            } else if let existing = pathOverlay {
-                map.removeOverlay(existing)
-                pathOverlay = nil
+            } else if !pathOverlays.isEmpty {
+                map.removeOverlays(pathOverlays)
+                pathOverlays.removeAll()
                 lastPathSamplesCount = -1
                 lastPathLastTimestamp = nil
             }

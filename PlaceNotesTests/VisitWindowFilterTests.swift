@@ -102,4 +102,23 @@ final class VisitWindowFilterTests: XCTestCase {
         let samples = VisitWindowFilter.samples(in: window, from: all, capDays: 7)
         XCTAssertEqual(samples.count, 1)   // only the 3-day-old sample
     }
+
+    func testSamplesExcludesRejectedAccuracy() {
+        let now = Date()
+        let goodTS = cal.date(byAdding: .day, value: -2, to: now)!
+        let badTS = cal.date(byAdding: .day, value: -3, to: now)!
+        context.insert(RawLocationSample(
+            latitude: 37.78, longitude: -122.41, timestamp: goodTS,
+            horizontalAccuracy: 5, speed: 0, filterStatus: "accepted"
+        ))
+        context.insert(RawLocationSample(
+            latitude: 37.78, longitude: -122.41, timestamp: badTS,
+            horizontalAccuracy: 200, speed: 0, filterStatus: "rejected-accuracy"
+        ))
+        let window = TimeWindow(endDate: now, lengthDays: 15, firstVisitDate: dayOffset(-60))
+        let all = try! context.fetch(FetchDescriptor<RawLocationSample>())
+        let samples = VisitWindowFilter.samples(in: window, from: all, capDays: 7)
+        XCTAssertEqual(samples.count, 1)
+        XCTAssertEqual(samples.first?.filterStatus, "accepted")
+    }
 }
