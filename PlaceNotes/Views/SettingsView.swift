@@ -96,6 +96,27 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Stepper(value: $settings.tripMinDays, in: 2...14) {
+                        LabeledContent("Minimum Length", value: "\(settings.tripMinDays) days")
+                    }
+
+                    Stepper(value: $settings.tripMinDistanceKm, in: 10...500, step: 10) {
+                        LabeledContent("Distance From Home", value: "\(Int(settings.tripMinDistanceKm)) km")
+                    }
+
+                    if let home = settings.cachedTripHomeCentroid {
+                        LabeledContent(
+                            "Cached Home",
+                            value: "\(home.latitude.formatted(.number.precision(.fractionLength(4)))), \(home.longitude.formatted(.number.precision(.fractionLength(4))))"
+                        )
+                    }
+                } header: {
+                    Text("Trip Clustering")
+                } footer: {
+                    Text("Trips are derived from visits that span multiple days away from your inferred overnight home location.")
+                }
+
+                Section {
                     ForEach(Array(settings.milestoneVisitCounts), id: \.self) { count in
                         HStack {
                             Image(systemName: "bell.fill")

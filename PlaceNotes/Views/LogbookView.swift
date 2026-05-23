@@ -11,39 +11,77 @@ struct LogbookView: View {
     @State private var showDeleteConfirmation = false
     @State private var refreshID = UUID()
     @State private var trajectoryDay: Date?
+    @State private var tripHomeCentroid: TripDetector.HomeCentroid?
 
-    private var groupedVisits: [(year: Int, months: [(month: Int, visits: [Visit])])] {
+    private var logbookVisits: [Visit] {
         let minStay = settings.minStayMinutes
-        let allVisits = places
+        return places
             .flatMap { $0.visits }
             .filter { $0.isQuickCapture || !$0.journalEntries.isEmpty || $0.durationMinutes >= minStay }
             .sorted { $0.arrivalDate > $1.arrivalDate }
+    }
 
-        let calendar = Calendar.current
-        var yearMonthMap: [Int: [Int: [Visit]]] = [:]
+    private var timelineSections: [LogbookTimelineSection] {
+        let visits = logbookVisits
+        guard !visits.isEmpty else { return [] }
 
-        for visit in allVisits {
-            let year = calendar.component(.year, from: visit.arrivalDate)
-            let month = calendar.component(.month, from: visit.arrivalDate)
-            yearMonthMap[year, default: [:]][month, default: []].append(visit)
+        let home = tripHomeCentroid ?? settings.cachedTripHomeCentroid
+        let trips = home.map {
+            TripDetector.detectTrips(
+                from: visits,
+                homeCentroid: $0,
+                minDays: settings.tripMinDays,
+                minDistanceKm: settings.tripMinDistanceKm
+            )
+        } ?? []
+        let tripVisitIDs = Set(trips.flatMap { $0.visits.map(\.id) })
+        let localVisits = visits.filter { !tripVisitIDs.contains($0.id) }
+
+        var sections = trips.map { trip in
+            LogbookTimelineSection(
+                id: "trip-\(trip.id)",
+                title: "Trip · \(Self.tripDateRange(for: trip))",
+                icon: "airplane",
+                latestDate: trip.endDate,
+                kind: .trip(trip)
+            )
         }
 
-        return yearMonthMap
-            .sorted { $0.key > $1.key }
-            .map { year, months in
-                let sortedMonths = months
-                    .sorted { $0.key > $1.key }
-                    .map { month, visits in
-                        (month: month, visits: visits.sorted { $0.arrivalDate > $1.arrivalDate })
-                    }
-                return (year: year, months: sortedMonths)
-            }
+        let thisWeekInterval = Calendar.current.dateInterval(of: .weekOfYear, for: Date())
+        let thisWeek = localVisits.filter { visit in
+            thisWeekInterval?.contains(visit.arrivalDate) == true
+        }
+        let earlier = localVisits.filter { visit in
+            thisWeekInterval?.contains(visit.arrivalDate) != true
+        }
+
+        if !thisWeek.isEmpty {
+            sections.append(LogbookTimelineSection(
+                id: "local-this-week",
+                title: "This week",
+                icon: "calendar",
+                latestDate: thisWeek.first?.arrivalDate ?? .distantPast,
+                kind: .local(visits: thisWeek)
+            ))
+        }
+
+        if !earlier.isEmpty {
+            sections.append(LogbookTimelineSection(
+                id: "local-earlier",
+                title: "Earlier",
+                icon: "calendar",
+                latestDate: earlier.first?.arrivalDate ?? .distantPast,
+                kind: .local(visits: earlier)
+            ))
+        }
+
+        return sections.sorted { $0.latestDate > $1.latestDate }
     }
 
     var body: some View {
         NavigationStack {
             Group {
-                if groupedVisits.isEmpty {
+                if logbookVisits.isEmpty {
                     ContentUnavailableView(
                         "No Visits Yet",
                         systemImage: "book.closed",
@@ -51,36 +89,58 @@ struct LogbookView: View {
                     )
                 } else {
                     List {
-                        ForEach(groupedVisits, id: \.year) { yearGroup in
+                        ForEach(timelineSections) { section in
                             Section {
-                                ForEach(yearGroup.months, id: \.month) { monthGroup in
-                                    MonthSection(
-                                        year: yearGroup.year,
-                                        month: monthGroup.month,
-                                        visits: monthGroup.visits,
-                                        onPickAlternative: { visit in
-                                            visitForAlternatives = visit
-                                        },
-                                        onDelete: { visit in
-                                            visitToDelete = visit
-                                            showDeleteConfirmation = true
-                                        },
-                                        onShowTrajectory: { arrival in
-                                            trajectoryDay = Calendar.current.startOfDay(for: arrival)
+                                switch section.kind {
+                                case .trip(let trip):
+                                    TripHeroCard(trip: trip)
+                                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+
+                                case .local(let visits):
+                                    ForEach(Array(visits.enumerated()), id: \.element.id) { index, visit in
+                                        if let place = visit.place {
+                                            NavigationLink {
+                                                PlaceDetailView(place: place)
+                                            } label: {
+                                                LocalVisitCompactRow(
+                                                    visit: visit,
+                                                    place: place,
+                                                    nextSameDayArrival: nextSameDayArrival(for: index, in: visits)
+                                                ) {
+                                                    visitForAlternatives = visit
+                                                }
+                                            }
+                                            .buttonStyle(.plain)
+                                            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                                                Button {
+                                                    trajectoryDay = Calendar.current.startOfDay(for: visit.arrivalDate)
+                                                } label: {
+                                                    Label("Map", systemImage: "map")
+                                                }
+                                                .tint(.blue)
+                                            }
+                                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                                Button {
+                                                    visitToDelete = visit
+                                                    showDeleteConfirmation = true
+                                                } label: {
+                                                    Label("Delete", systemImage: "trash")
+                                                }
+                                                .tint(.red)
+                                            }
                                         }
-                                    )
+                                    }
                                 }
                             } header: {
-                                Text(String(yearGroup.year))
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.primary)
-                                    .textCase(nil)
+                                LogbookSectionHeader(icon: section.icon, title: section.title)
                             }
                         }
                     }
                     .listStyle(.insetGrouped)
                     .id(refreshID)
+                    .onAppear(perform: refreshTripHomeCentroid)
                     .refreshable {
+                        refreshTripHomeCentroid()
                         refreshID = UUID()
                     }
                 }
@@ -114,6 +174,226 @@ struct LogbookView: View {
                 Text("This visit will be permanently deleted.")
             }
         }
+    }
+
+    private func refreshTripHomeCentroid() {
+        let allVisits = places.flatMap { $0.visits }
+        if let centroid = TripDetector.homeCentroid(from: allVisits) {
+            settings.cachedTripHomeCentroid = centroid
+            tripHomeCentroid = centroid
+        } else {
+            tripHomeCentroid = settings.cachedTripHomeCentroid
+        }
+    }
+
+    private func nextSameDayArrival(for index: Int, in visits: [Visit]) -> Date? {
+        guard index > 0 else { return nil }
+        let next = visits[index - 1]
+        let current = visits[index]
+        return Calendar.current.isDate(next.arrivalDate, inSameDayAs: current.arrivalDate) ? next.arrivalDate : nil
+    }
+
+    private static func tripDateRange(for trip: Trip) -> String {
+        let calendar = Calendar.current
+        let start = trip.startDate
+        let end = trip.endDate
+        let formatter = DateFormatter()
+
+        if calendar.component(.year, from: start) == calendar.component(.year, from: end) {
+            formatter.dateFormat = "MMM d"
+            let startText = formatter.string(from: start)
+            formatter.dateFormat = calendar.component(.month, from: start) == calendar.component(.month, from: end) ? "d" : "MMM d"
+            return "\(startText) - \(formatter.string(from: end))"
+        }
+
+        formatter.dateFormat = "MMM d, yyyy"
+        return "\(formatter.string(from: start)) - \(formatter.string(from: end))"
+    }
+}
+
+private struct LogbookTimelineSection: Identifiable {
+    let id: String
+    let title: String
+    let icon: String
+    let latestDate: Date
+    let kind: LogbookTimelineSectionKind
+}
+
+private enum LogbookTimelineSectionKind {
+    case trip(Trip)
+    case local(visits: [Visit])
+}
+
+private struct LogbookSectionHeader: View {
+    let icon: String
+    let title: String
+
+    var body: some View {
+        Label(title, systemImage: icon)
+            .font(.headline)
+            .foregroundStyle(.primary)
+            .textCase(nil)
+    }
+}
+
+private struct TripHeroCard: View {
+    let trip: Trip
+
+    private var title: String {
+        if let city = trip.uniquePlaces.compactMap(\.city).first {
+            return "Trip to \(city)"
+        }
+        return trip.uniquePlaces.first?.displayName ?? "Trip"
+    }
+
+    private var subtitle: String {
+        let days = trip.dayCount == 1 ? "1 day" : "\(trip.dayCount) days"
+        return "\(days) · \(Int(trip.distanceFromHomeKm.rounded())) km from home"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "airplane.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundStyle(Color.accentColor)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.title3.weight(.semibold))
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            PlacePillRow(places: trip.uniquePlaces)
+
+            HStack(spacing: 10) {
+                TripStat(value: "\(trip.uniquePlaces.count)", label: "Places", icon: "mappin.and.ellipse")
+                TripStat(value: "\(trip.noteCount)", label: "Notes", icon: "note.text")
+                TripStat(value: "\(trip.photoCount)", label: "Photos", icon: "camera")
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color.accentColor.opacity(0.10))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.accentColor.opacity(0.20), lineWidth: 1)
+        )
+        .padding(.vertical, 2)
+    }
+}
+
+private struct PlacePillRow: View {
+    let places: [Place]
+
+    var body: some View {
+        let visiblePlaces = Array(places.prefix(3))
+        HStack(spacing: 8) {
+            ForEach(visiblePlaces, id: \.id) { place in
+                HStack(spacing: 4) {
+                    Text(place.emoji)
+                    Text(place.displayName)
+                        .lineLimit(1)
+                }
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Color(.secondarySystemGroupedBackground)))
+            }
+
+            if places.count > visiblePlaces.count {
+                Text("+\(places.count - visiblePlaces.count) more")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color(.secondarySystemGroupedBackground)))
+            }
+        }
+    }
+}
+
+private struct TripStat: View {
+    let value: String
+    let label: String
+    let icon: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.headline)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct LocalVisitCompactRow: View {
+    let visit: Visit
+    let place: Place
+    let nextSameDayArrival: Date?
+    var onPickAlternative: (() -> Void)?
+
+    private var relativeTimestamp: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: visit.arrivalDate, relativeTo: Date())
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Text(place.emoji)
+                    .font(.title3)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(place.displayName)
+                        .font(.body.weight(.medium))
+                        .lineLimit(1)
+                    Text(relativeTimestamp)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Text(visit.effectiveDurationString(cappedAt: nextSameDayArrival))
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.accentColor)
+            }
+
+            if !visit.alternativePlaces.isEmpty {
+                Button {
+                    onPickAlternative?()
+                } label: {
+                    if visit.placeConfirmed {
+                        Label("Place confirmed", systemImage: "checkmark.circle")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    } else {
+                        Label("Not the right place?", systemImage: "arrow.triangle.swap")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 40)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -292,216 +572,3 @@ private struct AlternativePlacePicker: View {
         dismiss()
     }
 }
-
-private struct MonthSection: View {
-    let year: Int
-    let month: Int
-    let visits: [Visit]
-    var onPickAlternative: ((Visit) -> Void)?
-    var onDelete: ((Visit) -> Void)?
-    var onShowTrajectory: ((Date) -> Void)?
-
-    private var monthName: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM"
-        var components = DateComponents()
-        components.month = month
-        let date = Calendar.current.date(from: components) ?? Date()
-        return formatter.string(from: date)
-    }
-
-    private var uniquePlaceCount: Int {
-        Set(visits.compactMap { $0.place?.id }).count
-    }
-
-    private var totalMinutes: Int {
-        visits.reduce(0) { $0 + $1.durationMinutes }
-    }
-
-    var body: some View {
-        DisclosureGroup {
-            ForEach(Array(visits.enumerated()), id: \.element.id) { index, visit in
-                if let place = visit.place {
-                    let nextSameDay: Date? = {
-                        guard index > 0 else { return nil }
-                        let next = visits[index - 1]
-                        return Calendar.current.isDate(next.arrivalDate, inSameDayAs: visit.arrivalDate) ? next.arrivalDate : nil
-                    }()
-                    NavigationLink {
-                        PlaceDetailView(place: place)
-                    } label: {
-                        LogbookVisitRow(visit: visit, place: place, nextSameDayArrival: nextSameDay) {
-                            onPickAlternative?(visit)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                        Button {
-                            onShowTrajectory?(visit.arrivalDate)
-                        } label: {
-                            Label("Map", systemImage: "map")
-                        }
-                        .tint(.blue)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button {
-                            onDelete?(visit)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        .tint(.red)
-                    }
-                }
-            }
-        } label: {
-            HStack {
-                Text(monthName)
-                    .font(.headline)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(visits.count) visits")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(uniquePlaceCount) places")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-    }
-}
-
-private struct LogbookVisitRow: View {
-    let visit: Visit
-    let place: Place
-    let nextSameDayArrival: Date?
-    var onPickAlternative: (() -> Void)?
-
-    private var dateString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, h:mm a"
-        return formatter.string(from: visit.arrivalDate)
-    }
-
-    private var hasPhoto: Bool {
-        let start = visit.arrivalDate.addingTimeInterval(-5 * 60)
-        let end = (visit.departureDate ?? visit.arrivalDate).addingTimeInterval(5 * 60)
-        return place.journalEntries.contains { entry in
-            !entry.photoAssetIdentifiers.isEmpty &&
-            entry.date >= start &&
-            entry.date <= end
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
-                if place.customEmoji != nil {
-                    Text(place.emoji)
-                        .font(.title3)
-                        .frame(width: 28)
-                } else {
-                    Image(systemName: PlaceCategorizer.icon(for: place.category))
-                        .font(.title3)
-                        .foregroundStyle(Color.accentColor)
-                        .frame(width: 28)
-                }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(place.displayName)
-                            .font(.body.weight(.medium))
-                        if hasPhoto {
-                            Image(systemName: "camera.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    HStack(spacing: 8) {
-                        if let category = place.category, !category.isEmpty {
-                            Text(category)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        if let city = place.city {
-                            Text(city)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text(dateString)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(visit.effectiveDurationString(cappedAt: nextSameDayArrival))
-                        .font(.caption.bold())
-                        .foregroundStyle(Color.accentColor)
-                    #if DEBUG
-                    ConfidenceBadge(confidence: visit.confidence, accuracy: visit.medianAccuracyMeters)
-                    #endif
-                }
-            }
-
-            if !visit.alternativePlaces.isEmpty {
-                Button {
-                    onPickAlternative?()
-                } label: {
-                    if visit.placeConfirmed {
-                        Label("Place confirmed", systemImage: "checkmark.circle")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    } else {
-                        Label("Not the right place?", systemImage: "arrow.triangle.swap")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
-                }
-                .buttonStyle(.plain)
-                .padding(.leading, 40)
-            }
-        }
-        .padding(.vertical, 2)
-    }
-}
-
-// MARK: - Debug Confidence Badge
-
-#if DEBUG
-private struct ConfidenceBadge: View {
-    let confidence: PlaceConfidence
-    let accuracy: Double?
-
-    private var color: Color {
-        switch confidence {
-        case .high: return .green
-        case .medium: return .orange
-        case .low: return .red
-        }
-    }
-
-    private var icon: String {
-        switch confidence {
-        case .high: return "checkmark.seal.fill"
-        case .medium: return "questionmark.diamond.fill"
-        case .low: return "exclamationmark.triangle.fill"
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: icon)
-            Text(confidence.rawValue)
-            if let acc = accuracy {
-                Text("(\(Int(acc))m)")
-            }
-        }
-        .font(.caption2)
-        .foregroundStyle(color)
-    }
-}
-#endif
