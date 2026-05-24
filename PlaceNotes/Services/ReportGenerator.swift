@@ -6,6 +6,10 @@ struct PlaceRanking: Identifiable {
     let place: Place
     let qualifiedStays: Int
     let totalMinutes: Int
+
+    /// All recorded visits, regardless of duration or recency — the count the
+    /// place detail card, header, and charts display.
+    var totalVisits: Int { place.visits.count }
 }
 
 struct MonthlyReport: Identifiable {
