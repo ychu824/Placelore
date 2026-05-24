@@ -91,6 +91,42 @@ enum TrajectoryBuilder {
         return zip(points, keep).compactMap { $0.1 ? $0.0 : nil }
     }
 
+    /// Drop physically-impossible GPS fixes ("teleports") from a
+    /// chronologically-sorted run of samples. A fix is rejected when its
+    /// implied speed from the last *kept* sample exceeds
+    /// `maxSpeedMetersPerSecond`. Anchoring on the last kept sample — rather
+    /// than the immediate predecessor — means a lone outlier is discarded
+    /// without also dropping the valid fix that follows it.
+    ///
+    /// The device's self-reported `horizontalAccuracy` can stay small on a
+    /// grossly wrong fix, so the accuracy gate upstream never catches these;
+    /// the inter-sample speed is the only reliable signal.
+    static func rejectOutliers(
+        _ samples: [RawLocationSample],
+        maxSpeedMetersPerSecond: Double
+    ) -> [RawLocationSample] {
+        guard let first = samples.first else { return [] }
+
+        var kept: [RawLocationSample] = [first]
+        var anchor = first
+
+        for i in 1..<samples.count {
+            let candidate = samples[i]
+            let dt = candidate.timestamp.timeIntervalSince(anchor.timestamp)
+            let anchorLoc = CLLocation(latitude: anchor.latitude, longitude: anchor.longitude)
+            let candidateLoc = CLLocation(latitude: candidate.latitude, longitude: candidate.longitude)
+            let distance = anchorLoc.distance(from: candidateLoc)
+            // dt <= 0 means duplicate/zero-interval timestamps; a co-located
+            // fix is fine, but any spatial jump in zero time is a teleport.
+            let impliedSpeed = dt > 0 ? distance / dt : (distance == 0 ? 0 : .infinity)
+            if impliedSpeed <= maxSpeedMetersPerSecond {
+                kept.append(candidate)
+                anchor = candidate
+            }
+        }
+        return kept
+    }
+
     static func computeStats(
         segments: [TrajectorySegment],
         rawSampleCount: Int,
@@ -124,10 +160,12 @@ enum TrajectoryBuilder {
         samples: [RawLocationSample],
         day: Date,
         epsilonMeters: Double = 5,
-        maxGapSeconds: TimeInterval = 600
+        maxGapSeconds: TimeInterval = 600,
+        maxSpeedMetersPerSecond: Double = 50
     ) -> [TrajectorySegment] {
         let dayStart = Calendar.current.startOfDay(for: day)
-        let raw = splitIntoSegments(samples, maxGapSeconds: maxGapSeconds)
+        let cleaned = rejectOutliers(samples, maxSpeedMetersPerSecond: maxSpeedMetersPerSecond)
+        let raw = splitIntoSegments(cleaned, maxGapSeconds: maxGapSeconds)
 
         return raw.compactMap { rawSegment in
             let points = convertToPoints(rawSegment, dayStart: dayStart)
