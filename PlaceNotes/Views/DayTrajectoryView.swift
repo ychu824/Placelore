@@ -37,13 +37,10 @@ struct DayTrajectoryView: View {
                 TrajectoryPolyline(segments: segments, colorMode: .time)
 
                 if showAllSamples {
-                    ForEach(rawSamples, id: \.id) { sample in
+                    ForEach(segments.flatMap(\.points), id: \.timestamp) { point in
                         Annotation(
                             "",
-                            coordinate: CLLocationCoordinate2D(
-                                latitude: sample.latitude,
-                                longitude: sample.longitude
-                            )
+                            coordinate: point.coordinate
                         ) {
                             Circle()
                                 .fill(Color.blue.opacity(0.7))

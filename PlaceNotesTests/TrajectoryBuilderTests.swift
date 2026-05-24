@@ -87,6 +87,75 @@ final class TrajectoryBuilderTests: XCTestCase {
         XCTAssertEqual(segments[2].count, 2)
     }
 
+    // MARK: - rejectOutliers (teleport guard)
+
+    func testRejectOutliersEmptyReturnsEmpty() {
+        let result = TrajectoryBuilder.rejectOutliers([], maxSpeedMetersPerSecond: 50)
+        XCTAssertTrue(result.isEmpty)
+    }
+
+    func testRejectOutliersSingleSampleKept() {
+        let s = [sample(offsetSeconds: 0)]
+        let result = TrajectoryBuilder.rejectOutliers(s, maxSpeedMetersPerSecond: 50)
+        XCTAssertEqual(result.count, 1)
+    }
+
+    func testRejectOutliersSlowWalkAllKept() {
+        // ~0.0001 deg lat ≈ 11 m per 30 s ≈ 0.37 m/s — well under the bound.
+        let s = (0..<5).map { i in
+            sample(offsetSeconds: Double(i) * 30, lat: 37.78 + Double(i) * 0.0001, lon: -122.41)
+        }
+        let result = TrajectoryBuilder.rejectOutliers(s, maxSpeedMetersPerSecond: 50)
+        XCTAssertEqual(result.count, 5)
+    }
+
+    func testRejectOutliersDropsTeleportAndKeepsNeighbor() {
+        // Two valid co-located fixes 120 s apart, with a ~24 km jump in between
+        // (offset 60 s → implied speed far above 50 m/s).
+        let s = [
+            sample(offsetSeconds: 0, lat: 37.78, lon: -122.41),
+            sample(offsetSeconds: 60, lat: 38.00, lon: -122.41),  // teleport
+            sample(offsetSeconds: 120, lat: 37.78, lon: -122.41)
+        ]
+        let result = TrajectoryBuilder.rejectOutliers(s, maxSpeedMetersPerSecond: 50)
+        XCTAssertEqual(result.count, 2)
+        XCTAssertEqual(result[0].latitude, 37.78, accuracy: 1e-9)
+        // Anchor stayed at the first fix, so the post-teleport fix is kept.
+        XCTAssertEqual(result[1].latitude, 37.78, accuracy: 1e-9)
+        XCTAssertEqual(result[1].timestamp, s[2].timestamp)
+    }
+
+    func testRejectOutliersDropsRunOfTeleports() {
+        let s = [
+            sample(offsetSeconds: 0, lat: 37.78, lon: -122.41),
+            sample(offsetSeconds: 30, lat: 38.50, lon: -122.41),  // teleport
+            sample(offsetSeconds: 60, lat: 38.60, lon: -122.41),  // teleport vs anchor
+            sample(offsetSeconds: 90, lat: 37.78, lon: -122.41)
+        ]
+        let result = TrajectoryBuilder.rejectOutliers(s, maxSpeedMetersPerSecond: 50)
+        XCTAssertEqual(result.count, 2)
+        XCTAssertEqual(result[0].timestamp, s[0].timestamp)
+        XCTAssertEqual(result[1].timestamp, s[3].timestamp)
+    }
+
+    func testRejectOutliersZeroIntervalSpatialJumpRejected() {
+        let s = [
+            sample(offsetSeconds: 0, lat: 37.78, lon: -122.41),
+            sample(offsetSeconds: 0, lat: 38.00, lon: -122.41)  // same instant, far away
+        ]
+        let result = TrajectoryBuilder.rejectOutliers(s, maxSpeedMetersPerSecond: 50)
+        XCTAssertEqual(result.count, 1)
+    }
+
+    func testRejectOutliersPlausibleDrivingKept() {
+        // ~0.0001 deg lat ≈ 11 m per 0.3 s ≈ 37 m/s (highway) — under 50.
+        let s = (0..<4).map { i in
+            sample(offsetSeconds: Double(i) * 0.3, lat: 37.78 + Double(i) * 0.0001, lon: -122.41)
+        }
+        let result = TrajectoryBuilder.rejectOutliers(s, maxSpeedMetersPerSecond: 50)
+        XCTAssertEqual(result.count, 4)
+    }
+
     // MARK: - simplify (Douglas–Peucker)
 
     private func point(lat: Double, lon: Double) -> TrajectoryPoint {
