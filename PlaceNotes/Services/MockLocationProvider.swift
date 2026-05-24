@@ -52,14 +52,22 @@ final class MockLocationProvider {
             purgeIfNeeded(context: context)
         }
 
-        guard !hasSeededData else { return }
-
         let descriptor = FetchDescriptor<Place>()
         let existingCount = (try? context.fetchCount(descriptor)) ?? 0
-        guard existingCount == 0 else { return }
-
         let calendar = Calendar.current
         let now = Date()
+
+        if existingCount > 0 {
+            guard !hasDetectedTripFixtures(context: context) else { return }
+
+            seedDetectedTrips(now: now, calendar: calendar, context: context)
+            try? context.save()
+            UserDefaults.standard.set(true, forKey: seededKey)
+            UserDefaults.standard.set(seedVersion, forKey: seedVersionKey)
+            logger.info("Added debug mock trip fixtures (v\(seedVersion))")
+            return
+        }
+
         let tripDayOffsets: Set<Int> = [7, 8, 9, 24, 25, 26, 27]
 
         for mockPlace in samplePlaces {
@@ -128,7 +136,39 @@ final class MockLocationProvider {
 
     @MainActor
     private static func seedDetectedTrips(now: Date, calendar: Calendar, context: ModelContext) {
-        let home = Place(
+        let descriptor = FetchDescriptor<Place>()
+        let existingPlaces = (try? context.fetch(descriptor)) ?? []
+        var existingPlacesByName: [String: Place] = [:]
+        for existingPlace in existingPlaces {
+            existingPlacesByName[existingPlace.name] = existingPlacesByName[existingPlace.name] ?? existingPlace
+        }
+
+        func place(
+            name: String,
+            latitude: Double,
+            longitude: Double,
+            category: String,
+            city: String,
+            state: String
+        ) -> Place {
+            if let existingPlace = existingPlacesByName[name] {
+                return existingPlace
+            }
+
+            let newPlace = Place(
+                name: name,
+                latitude: latitude,
+                longitude: longitude,
+                category: category,
+                city: city,
+                state: state
+            )
+            context.insert(newPlace)
+            existingPlacesByName[name] = newPlace
+            return newPlace
+        }
+
+        let home = place(
             name: "Home",
             latitude: 37.7649,
             longitude: -122.4194,
@@ -136,7 +176,7 @@ final class MockLocationProvider {
             city: "San Francisco",
             state: "CA"
         )
-        let stumptown = Place(
+        let stumptown = place(
             name: "Stumptown Coffee Roasters",
             latitude: 45.5228,
             longitude: -122.6819,
@@ -144,7 +184,7 @@ final class MockLocationProvider {
             city: "Portland",
             state: "OR"
         )
-        let powells = Place(
+        let powells = place(
             name: "Powell's City of Books",
             latitude: 45.5231,
             longitude: -122.6813,
@@ -152,7 +192,7 @@ final class MockLocationProvider {
             city: "Portland",
             state: "OR"
         )
-        let pokPok = Place(
+        let pokPok = place(
             name: "Pok Pok",
             latitude: 45.5049,
             longitude: -122.6321,
@@ -160,7 +200,7 @@ final class MockLocationProvider {
             city: "Portland",
             state: "OR"
         )
-        let hotel = Place(
+        let hotel = place(
             name: "The State Hotel",
             latitude: 47.6097,
             longitude: -122.3405,
@@ -168,7 +208,7 @@ final class MockLocationProvider {
             city: "Seattle",
             state: "WA"
         )
-        let pikePlace = Place(
+        let pikePlace = place(
             name: "Pike Place Market",
             latitude: 47.6094,
             longitude: -122.3417,
@@ -176,7 +216,7 @@ final class MockLocationProvider {
             city: "Seattle",
             state: "WA"
         )
-        let museum = Place(
+        let museum = place(
             name: "Seattle Art Museum",
             latitude: 47.6073,
             longitude: -122.3381,
@@ -184,10 +224,6 @@ final class MockLocationProvider {
             city: "Seattle",
             state: "WA"
         )
-
-        for place in [home, stumptown, powells, pokPok, hotel, pikePlace, museum] {
-            context.insert(place)
-        }
 
         // Enough recent overnight home visits to make the inferred home centroid deterministic.
         for offset in [1, 2, 3, 4, 5, 10, 12, 14, 18, 21, 30, 45] {
@@ -270,6 +306,17 @@ final class MockLocationProvider {
     ]
 
     private static let mockPlaceNames: Set<String> = Set(samplePlaces.map(\.name)).union(mockTripPlaceNames)
+
+    @MainActor
+    private static func hasDetectedTripFixtures(context: ModelContext) -> Bool {
+        let descriptor = FetchDescriptor<Place>()
+        guard let places = try? context.fetch(descriptor) else { return false }
+
+        let tripPlaces = places.filter { mockTripPlaceNames.contains($0.name) }
+        let tripPlaceNames = Set(tripPlaces.map(\.name))
+        let tripFixtureVisitCount = tripPlaces.reduce(0) { $0 + $1.visits.count }
+        return mockTripPlaceNames.isSubset(of: tripPlaceNames) && tripFixtureVisitCount >= 20
+    }
 
     /// Removes all mock-seeded data from the database.
     /// Call this in release builds to clean up leftover debug data.
