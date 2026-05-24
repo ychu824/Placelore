@@ -234,10 +234,6 @@ struct ClusterItem: MapAnnotationItem {
         let memberIDs = rankings.map { $0.place.id.uuidString }.sorted().joined(separator: "+")
         return "cluster-\(memberIDs)"
     }
-
-    var totalVisits: Int {
-        rankings.reduce(0) { $0 + $1.qualifiedStays }
-    }
 }
 
 // MARK: - Annotation Views
@@ -247,7 +243,7 @@ struct PlaceAnnotationView: View {
     @State private var pulse = false
 
     private var flameIntensity: FlameIntensity {
-        FlameIntensity(visitCount: ranking.qualifiedStays)
+        FlameIntensity(visitCount: ranking.totalVisits)
     }
 
     private var borderGradient: LinearGradient {
@@ -307,19 +303,19 @@ struct PlaceAnnotationView: View {
             Text(ranking.place.emoji)
                 .font(.system(size: 18))
 
-            if ranking.qualifiedStays > 0 {
+            if ranking.totalVisits > 0 {
                 Circle()
                     .fill(.black.opacity(0.3))
                     .frame(width: 4, height: 4)
 
-                Text("\(ranking.qualifiedStays)")
+                Text("\(ranking.totalVisits)")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(.primary)
             }
         }
         .padding(.vertical, 8)
         .padding(.leading, 10)
-        .padding(.trailing, ranking.qualifiedStays > 0 ? 14 : 10)
+        .padding(.trailing, ranking.totalVisits > 0 ? 14 : 10)
         .background(
             Capsule()
                 .fill(.ultraThinMaterial)
