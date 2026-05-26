@@ -23,7 +23,7 @@ struct PlaceStatsCharts: View {
 
     @ViewBuilder
     private func chartCard<Content: View>(
-        title: String,
+        title: LocalizedStringKey,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
