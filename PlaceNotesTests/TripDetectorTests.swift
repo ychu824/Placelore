@@ -107,4 +107,181 @@ final class TripDetectorTests: XCTestCase {
         let result = TripDetector.computeHomeCentroid(visits: visits, referenceDate: date(2026, 5, 26), lookbackDays: 60, calendar: testCalendar)
         XCTAssertEqual(result!.latitude, 2, accuracy: 0.0001)
     }
+
+    // MARK: - partition
+
+    private func nyc(in container: ModelContainer) -> Place {
+        makePlace(in: container, name: "NYC Home", lat: 40.7128, lon: -74.0060, city: "New York")
+    }
+
+    private func sea(in container: ModelContainer) -> Place {
+        makePlace(in: container, name: "SEA Hotel", lat: 47.6062, lon: -122.3321, city: "Seattle")
+    }
+
+    func testPartitionEmptyVisits() {
+        let result = TripDetector.partition(
+            visits: [],
+            home: CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060),
+            minDays: 2,
+            minDistanceKm: 50
+        )
+        XCTAssertTrue(result.trips.isEmpty)
+        XCTAssertTrue(result.loose.isEmpty)
+    }
+
+    func testPartitionAllLocalVisitsProducesNoTrips() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let visits = [
+            makeVisit(arrival: date(2026, 5, 20, 9), departure: date(2026, 5, 20, 11), place: home),
+            makeVisit(arrival: date(2026, 5, 21, 9), departure: date(2026, 5, 21, 11), place: home)
+        ]
+        let result = TripDetector.partition(
+            visits: visits,
+            home: home.coordinate,
+            minDays: 2,
+            minDistanceKm: 50
+        )
+        XCTAssertTrue(result.trips.isEmpty)
+        XCTAssertEqual(result.loose.count, 2)
+    }
+
+    func testPartitionSingleFarVisitFailsMinDays() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let visits = [
+            makeVisit(arrival: date(2026, 5, 20, 10), departure: date(2026, 5, 20, 14), place: hotel)
+        ]
+        let result = TripDetector.partition(
+            visits: visits,
+            home: home.coordinate,
+            minDays: 2,
+            minDistanceKm: 50
+        )
+        XCTAssertTrue(result.trips.isEmpty)
+        XCTAssertEqual(result.loose.count, 1)
+    }
+
+    func testPartitionMultiDayFarRunBecomesTrip() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let visits = [
+            makeVisit(arrival: date(2026, 5, 20, 14), departure: date(2026, 5, 20, 18), place: hotel),
+            makeVisit(arrival: date(2026, 5, 21, 9), departure: date(2026, 5, 21, 17), place: hotel),
+            makeVisit(arrival: date(2026, 5, 22, 8), departure: date(2026, 5, 22, 12), place: hotel)
+        ]
+        let result = TripDetector.partition(
+            visits: visits,
+            home: home.coordinate,
+            minDays: 2,
+            minDistanceKm: 50
+        )
+        XCTAssertEqual(result.trips.count, 1)
+        XCTAssertEqual(result.loose.count, 0)
+        XCTAssertEqual(result.trips[0].visits.count, 3)
+    }
+
+    func testPartitionMixedDayBoundariesPreservesLocalVisits() {
+        // 5/29 NYC morning, 5/29 PM SEA flight, 5/30..6/2 SEA, 6/3 SEA AM, 6/3 PM NYC return
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let visits = [
+            makeVisit(arrival: date(2026, 5, 29, 9),  departure: date(2026, 5, 29, 11), place: home),
+            makeVisit(arrival: date(2026, 5, 29, 18), departure: date(2026, 5, 29, 22), place: hotel),
+            makeVisit(arrival: date(2026, 5, 30, 10), departure: date(2026, 5, 30, 17), place: hotel),
+            makeVisit(arrival: date(2026, 5, 31, 10), departure: date(2026, 5, 31, 17), place: hotel),
+            makeVisit(arrival: date(2026, 6, 1, 10),  departure: date(2026, 6, 1, 17),  place: hotel),
+            makeVisit(arrival: date(2026, 6, 2, 10),  departure: date(2026, 6, 2, 17),  place: hotel),
+            makeVisit(arrival: date(2026, 6, 3, 9),   departure: date(2026, 6, 3, 12),  place: hotel),
+            makeVisit(arrival: date(2026, 6, 3, 20),  departure: date(2026, 6, 3, 22),  place: home)
+        ]
+        let result = TripDetector.partition(
+            visits: visits,
+            home: home.coordinate,
+            minDays: 2,
+            minDistanceKm: 50
+        )
+        XCTAssertEqual(result.trips.count, 1)
+        XCTAssertEqual(result.trips[0].visits.count, 6)
+        XCTAssertEqual(result.loose.count, 2)
+        XCTAssertTrue(result.loose.allSatisfy { $0.place?.name == "NYC Home" })
+    }
+
+    func testPartitionTwoFarRunsSplitByLocalVisit() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let visits = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 18), place: hotel),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: hotel),
+            makeVisit(arrival: date(2026, 5, 3, 10), departure: date(2026, 5, 3, 18), place: home),
+            makeVisit(arrival: date(2026, 5, 4, 10), departure: date(2026, 5, 4, 18), place: hotel),
+            makeVisit(arrival: date(2026, 5, 5, 10), departure: date(2026, 5, 5, 18), place: hotel)
+        ]
+        let result = TripDetector.partition(
+            visits: visits,
+            home: home.coordinate,
+            minDays: 2,
+            minDistanceKm: 50
+        )
+        XCTAssertEqual(result.trips.count, 2)
+        XCTAssertEqual(result.loose.count, 1)
+    }
+
+    func testPartitionOpenVisitInFarRunIncluded() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let visits = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 18), place: hotel),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: nil, place: hotel)
+        ]
+        let result = TripDetector.partition(
+            visits: visits,
+            home: home.coordinate,
+            minDays: 2,
+            minDistanceKm: 50
+        )
+        XCTAssertEqual(result.trips.count, 1)
+        XCTAssertEqual(result.trips[0].endDate, date(2026, 5, 2, 10))
+    }
+
+    func testPartitionRespectsCustomMinDistanceKm() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        // ~10 km away from NYC
+        let nearby = makePlace(in: container, name: "Newark", lat: 40.7357, lon: -74.1724)
+        let visits = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 18), place: nearby),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: nearby)
+        ]
+        let defaultResult = TripDetector.partition(
+            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 50
+        )
+        XCTAssertTrue(defaultResult.trips.isEmpty)
+        let loweredResult = TripDetector.partition(
+            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 5
+        )
+        XCTAssertEqual(loweredResult.trips.count, 1)
+    }
+
+    func testPartitionVisitWithNilPlaceIsSkipped() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let orphan = Visit(arrivalDate: date(2026, 5, 1, 10), departureDate: date(2026, 5, 1, 12), place: nil)
+        let visits = [
+            orphan,
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: hotel),
+            makeVisit(arrival: date(2026, 5, 3, 10), departure: date(2026, 5, 3, 18), place: hotel)
+        ]
+        let result = TripDetector.partition(
+            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 50
+        )
+        XCTAssertEqual(result.trips.count, 1)
+        XCTAssertFalse(result.loose.contains(where: { $0 === orphan }))
+    }
 }
