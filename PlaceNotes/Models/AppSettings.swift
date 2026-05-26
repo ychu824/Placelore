@@ -52,6 +52,44 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var homeLatitude: Double? {
+        didSet {
+            if let homeLatitude {
+                UserDefaults.standard.set(homeLatitude, forKey: "homeLatitude")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "homeLatitude")
+            }
+        }
+    }
+
+    @Published var homeLongitude: Double? {
+        didSet {
+            if let homeLongitude {
+                UserDefaults.standard.set(homeLongitude, forKey: "homeLongitude")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "homeLongitude")
+            }
+        }
+    }
+
+    @Published var homeCentroidComputedAt: Date? {
+        didSet {
+            if let homeCentroidComputedAt {
+                UserDefaults.standard.set(homeCentroidComputedAt, forKey: "homeCentroidComputedAt")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "homeCentroidComputedAt")
+            }
+        }
+    }
+
+    @Published var tripMinDays: Int {
+        didSet { UserDefaults.standard.set(tripMinDays, forKey: "tripMinDays") }
+    }
+
+    @Published var tripMinDistanceKm: Double {
+        didSet { UserDefaults.standard.set(tripMinDistanceKm, forKey: "tripMinDistanceKm") }
+    }
+
     private init() {
         let savedMin = UserDefaults.standard.integer(forKey: "minStayMinutes")
         self.minStayMinutes = savedMin > 0 ? savedMin : 30
@@ -75,5 +113,25 @@ final class AppSettings: ObservableObject {
         } else {
             self.trackingState = .default
         }
+
+        if UserDefaults.standard.object(forKey: "homeLatitude") != nil {
+            self.homeLatitude = UserDefaults.standard.double(forKey: "homeLatitude")
+        } else {
+            self.homeLatitude = nil
+        }
+
+        if UserDefaults.standard.object(forKey: "homeLongitude") != nil {
+            self.homeLongitude = UserDefaults.standard.double(forKey: "homeLongitude")
+        } else {
+            self.homeLongitude = nil
+        }
+
+        self.homeCentroidComputedAt = UserDefaults.standard.object(forKey: "homeCentroidComputedAt") as? Date
+
+        let savedMinDays = UserDefaults.standard.integer(forKey: "tripMinDays")
+        self.tripMinDays = savedMinDays > 0 ? savedMinDays : 2
+
+        let savedMinKm = UserDefaults.standard.double(forKey: "tripMinDistanceKm")
+        self.tripMinDistanceKm = savedMinKm > 0 ? savedMinKm : 50
     }
 }
