@@ -1,3 +1,4 @@
+import CoreLocation
 import Foundation
 import SwiftUI
 
@@ -88,6 +89,11 @@ final class AppSettings: ObservableObject {
 
     @Published var tripMinDistanceKm: Double {
         didSet { UserDefaults.standard.set(tripMinDistanceKm, forKey: "tripMinDistanceKm") }
+    }
+
+    var homeCoordinate: CLLocationCoordinate2D? {
+        guard let homeLatitude, let homeLongitude else { return nil }
+        return CLLocationCoordinate2D(latitude: homeLatitude, longitude: homeLongitude)
     }
 
     private init() {
