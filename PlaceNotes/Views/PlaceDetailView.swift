@@ -134,7 +134,7 @@ struct PlaceDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    private func statItem(value: String, label: String) -> some View {
+    private func statItem(value: String, label: LocalizedStringKey) -> some View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.title3.bold())

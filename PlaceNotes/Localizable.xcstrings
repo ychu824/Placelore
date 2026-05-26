@@ -538,6 +538,16 @@
         }
       }
     },
+    "Day of week" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "星期分布"
+          }
+        }
+      }
+    },
     "Debug" : {
       "localizations" : {
         "zh-Hans" : {
@@ -1593,6 +1603,16 @@
         }
       }
     },
+    "Time of day" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时段分布"
+          }
+        }
+      }
+    },
     "Title" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1972,6 +1992,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "按时段统计访问"
+          }
+        }
+      }
+    },
+    "Visits per month" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每月访问"
           }
         }
       }
