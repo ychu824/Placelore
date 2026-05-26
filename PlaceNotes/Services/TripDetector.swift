@@ -103,23 +103,77 @@ enum TripDetector {
         return buildTrip(from: run, home: home)
     }
 
-    /// Stub — fully implemented in Task 5. Partition tests don't inspect stat fields.
     static func buildTrip(from run: [Visit], home: CLLocationCoordinate2D) -> Trip {
+        precondition(!run.isEmpty, "buildTrip requires at least one visit")
         let first = run.first!
         let last = run.last!
         let endDate = last.departureDate ?? last.arrivalDate
+
+        let homeLoc = CLLocation(latitude: home.latitude, longitude: home.longitude)
+        var totalDistance: Double = 0
+        var placeCounts: [UUID: (count: Int, place: Place)] = [:]
+        var photoCount = 0
+        var journalCount = 0
+
+        for v in run {
+            guard let p = v.place else { continue }
+            totalDistance += CLLocation(latitude: p.latitude, longitude: p.longitude).distance(from: homeLoc)
+            placeCounts[p.id, default: (0, p)].count += 1
+            for entry in v.journalEntries {
+                journalCount += 1
+                photoCount += entry.photoAssetIdentifiers.count
+            }
+        }
+
+        let validCount = run.compactMap { $0.place }.count
+        let meanDistance = validCount > 0 ? totalDistance / Double(validCount) : 0
+
+        var weightedLat: Double = 0
+        var weightedLon: Double = 0
+        var weightSum: Double = 0
+        for (_, entry) in placeCounts {
+            let w = Double(entry.count)
+            weightedLat += entry.place.latitude * w
+            weightedLon += entry.place.longitude * w
+            weightSum += w
+        }
+        let centroidLat = weightSum > 0 ? weightedLat / weightSum : 0
+        let centroidLon = weightSum > 0 ? weightedLon / weightSum : 0
+
+        let topPlace = placeCounts.values.max(by: { lhs, rhs in
+            if lhs.count != rhs.count { return lhs.count < rhs.count }
+            return lhs.place.id.uuidString > rhs.place.id.uuidString
+        })?.place
+        let title: String = topPlace?.city ?? topPlace?.name ?? "Trip"
+
+        let idSeed = "\(first.arrivalDate.timeIntervalSince1970)-\(endDate.timeIntervalSince1970)"
+        let id = UUID(uuidString: stableUUID(from: idSeed)) ?? UUID()
+
         return Trip(
-            id: UUID(),
+            id: id,
             startDate: first.arrivalDate,
             endDate: endDate,
             visits: run,
-            meanDistanceFromHomeMeters: 0,
-            centroidLatitude: 0,
-            centroidLongitude: 0,
-            uniquePlaceCount: 0,
-            photoCount: 0,
-            journalEntryCount: 0,
-            title: ""
+            meanDistanceFromHomeMeters: meanDistance,
+            centroidLatitude: centroidLat,
+            centroidLongitude: centroidLon,
+            uniquePlaceCount: placeCounts.count,
+            photoCount: photoCount,
+            journalEntryCount: journalCount,
+            title: title
         )
+    }
+
+    private static func stableUUID(from seed: String) -> String {
+        let hash = abs(seed.hashValue)
+        let bytes = withUnsafeBytes(of: hash) { Data($0) } + Data(repeating: 0, count: 16)
+        let prefix = bytes.prefix(16)
+        let hex = prefix.map { String(format: "%02x", $0) }.joined()
+        let g1 = hex.prefix(8)
+        let g2 = hex.dropFirst(8).prefix(4)
+        let g3 = hex.dropFirst(12).prefix(4)
+        let g4 = hex.dropFirst(16).prefix(4)
+        let g5 = hex.dropFirst(20).prefix(12)
+        return "\(g1)-\(g2)-\(g3)-\(g4)-\(g5)"
     }
 }

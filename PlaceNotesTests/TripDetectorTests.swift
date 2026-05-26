@@ -291,4 +291,92 @@ final class TripDetectorTests: XCTestCase {
         XCTAssertEqual(result.trips.count, 1)
         XCTAssertFalse(result.loose.contains(where: { $0 === orphan }))
     }
+
+    // MARK: - buildTrip
+
+    func testBuildTripComputesMeanDistance() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let run = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 18), place: hotel),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: hotel)
+        ]
+        let trip = TripDetector.buildTrip(from: run, home: home.coordinate)
+        let expected = CLLocation(latitude: hotel.latitude, longitude: hotel.longitude)
+            .distance(from: CLLocation(latitude: home.latitude, longitude: home.longitude))
+        XCTAssertEqual(trip.meanDistanceFromHomeMeters, expected, accuracy: 1.0)
+    }
+
+    func testBuildTripCentroidWeightedByVisitCount() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let a = makePlace(in: container, name: "A", lat: 47.0, lon: -122.0)
+        let b = makePlace(in: container, name: "B", lat: 48.0, lon: -123.0)
+        let run = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 11), place: a),
+            makeVisit(arrival: date(2026, 5, 1, 12), departure: date(2026, 5, 1, 13), place: a),
+            makeVisit(arrival: date(2026, 5, 1, 14), departure: date(2026, 5, 1, 15), place: a),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 11), place: b)
+        ]
+        let trip = TripDetector.buildTrip(from: run, home: home.coordinate)
+        // Weighted: lat (47*3 + 48*1)/4 = 47.25; lon (-122*3 + -123*1)/4 = -122.25
+        XCTAssertEqual(trip.centroidLatitude, 47.25, accuracy: 0.001)
+        XCTAssertEqual(trip.centroidLongitude, -122.25, accuracy: 0.001)
+    }
+
+    func testBuildTripCountsPhotosAcrossVisitJournalEntries() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let hotel = sea(in: container)
+        let v1 = makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 18), place: hotel)
+        let v2 = makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: hotel)
+        let entry1 = JournalEntry(title: "Day 1", body: "", date: date(2026, 5, 1, 12), photoAssetIdentifiers: ["a", "b"])
+        let entry2 = JournalEntry(title: "Day 2", body: "", date: date(2026, 5, 2, 12), photoAssetIdentifiers: ["c"])
+        v1.journalEntries.append(entry1)
+        v2.journalEntries.append(entry2)
+        let trip = TripDetector.buildTrip(from: [v1, v2], home: home.coordinate)
+        XCTAssertEqual(trip.photoCount, 3)
+        XCTAssertEqual(trip.journalEntryCount, 2)
+    }
+
+    func testBuildTripUniquePlaceCount() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let a = makePlace(in: container, name: "A", lat: 47.0, lon: -122.0)
+        let b = makePlace(in: container, name: "B", lat: 48.0, lon: -123.0)
+        let run = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 18), place: a),
+            makeVisit(arrival: date(2026, 5, 1, 19), departure: date(2026, 5, 1, 21), place: a),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: b)
+        ]
+        let trip = TripDetector.buildTrip(from: run, home: home.coordinate)
+        XCTAssertEqual(trip.uniquePlaceCount, 2)
+    }
+
+    func testBuildTripTitleUsesMostVisitedCity() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let pike = makePlace(in: container, name: "Pike Place", lat: 47.6, lon: -122.3, city: "Seattle")
+        let space = makePlace(in: container, name: "Space Needle", lat: 47.62, lon: -122.35, city: "Seattle")
+        let run = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 12), place: pike),
+            makeVisit(arrival: date(2026, 5, 1, 13), departure: date(2026, 5, 1, 15), place: space),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 12), place: pike)
+        ]
+        let trip = TripDetector.buildTrip(from: run, home: home.coordinate)
+        XCTAssertEqual(trip.title, "Seattle")
+    }
+
+    func testBuildTripTitleFallsBackToPlaceNameWhenNoCity() {
+        let container = makeContainer()
+        let home = nyc(in: container)
+        let cabin = makePlace(in: container, name: "Cabin", lat: 47.0, lon: -122.0, city: nil)
+        let run = [
+            makeVisit(arrival: date(2026, 5, 1, 10), departure: date(2026, 5, 1, 18), place: cabin),
+            makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: cabin)
+        ]
+        let trip = TripDetector.buildTrip(from: run, home: home.coordinate)
+        XCTAssertEqual(trip.title, "Cabin")
+    }
 }
