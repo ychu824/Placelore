@@ -123,7 +123,8 @@ final class TripDetectorTests: XCTestCase {
             visits: [],
             home: CLLocationCoordinate2D(latitude: 40.7128, longitude: -74.0060),
             minDays: 2,
-            minDistanceKm: 50
+            minDistanceKm: 50,
+            calendar: testCalendar
         )
         XCTAssertTrue(result.trips.isEmpty)
         XCTAssertTrue(result.loose.isEmpty)
@@ -140,7 +141,8 @@ final class TripDetectorTests: XCTestCase {
             visits: visits,
             home: home.coordinate,
             minDays: 2,
-            minDistanceKm: 50
+            minDistanceKm: 50,
+            calendar: testCalendar
         )
         XCTAssertTrue(result.trips.isEmpty)
         XCTAssertEqual(result.loose.count, 2)
@@ -157,7 +159,8 @@ final class TripDetectorTests: XCTestCase {
             visits: visits,
             home: home.coordinate,
             minDays: 2,
-            minDistanceKm: 50
+            minDistanceKm: 50,
+            calendar: testCalendar
         )
         XCTAssertTrue(result.trips.isEmpty)
         XCTAssertEqual(result.loose.count, 1)
@@ -176,7 +179,8 @@ final class TripDetectorTests: XCTestCase {
             visits: visits,
             home: home.coordinate,
             minDays: 2,
-            minDistanceKm: 50
+            minDistanceKm: 50,
+            calendar: testCalendar
         )
         XCTAssertEqual(result.trips.count, 1)
         XCTAssertEqual(result.loose.count, 0)
@@ -202,7 +206,8 @@ final class TripDetectorTests: XCTestCase {
             visits: visits,
             home: home.coordinate,
             minDays: 2,
-            minDistanceKm: 50
+            minDistanceKm: 50,
+            calendar: testCalendar
         )
         XCTAssertEqual(result.trips.count, 1)
         XCTAssertEqual(result.trips[0].visits.count, 6)
@@ -225,7 +230,8 @@ final class TripDetectorTests: XCTestCase {
             visits: visits,
             home: home.coordinate,
             minDays: 2,
-            minDistanceKm: 50
+            minDistanceKm: 50,
+            calendar: testCalendar
         )
         XCTAssertEqual(result.trips.count, 2)
         XCTAssertEqual(result.loose.count, 1)
@@ -243,7 +249,8 @@ final class TripDetectorTests: XCTestCase {
             visits: visits,
             home: home.coordinate,
             minDays: 2,
-            minDistanceKm: 50
+            minDistanceKm: 50,
+            calendar: testCalendar
         )
         XCTAssertEqual(result.trips.count, 1)
         XCTAssertEqual(result.trips[0].endDate, date(2026, 5, 2, 10))
@@ -259,11 +266,11 @@ final class TripDetectorTests: XCTestCase {
             makeVisit(arrival: date(2026, 5, 2, 10), departure: date(2026, 5, 2, 18), place: nearby)
         ]
         let defaultResult = TripDetector.partition(
-            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 50
+            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 50, calendar: testCalendar
         )
         XCTAssertTrue(defaultResult.trips.isEmpty)
         let loweredResult = TripDetector.partition(
-            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 5
+            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 5, calendar: testCalendar
         )
         XCTAssertEqual(loweredResult.trips.count, 1)
     }
@@ -279,7 +286,7 @@ final class TripDetectorTests: XCTestCase {
             makeVisit(arrival: date(2026, 5, 3, 10), departure: date(2026, 5, 3, 18), place: hotel)
         ]
         let result = TripDetector.partition(
-            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 50
+            visits: visits, home: home.coordinate, minDays: 2, minDistanceKm: 50, calendar: testCalendar
         )
         XCTAssertEqual(result.trips.count, 1)
         XCTAssertFalse(result.loose.contains(where: { $0 === orphan }))

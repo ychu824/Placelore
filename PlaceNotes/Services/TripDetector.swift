@@ -49,7 +49,8 @@ enum TripDetector {
         visits: [Visit],
         home: CLLocationCoordinate2D,
         minDays: Int,
-        minDistanceKm: Double
+        minDistanceKm: Double,
+        calendar: Calendar = .current
     ) -> (trips: [Trip], loose: [Visit]) {
         let placed = visits.filter { $0.place != nil }.sorted { $0.arrivalDate < $1.arrivalDate }
         guard !placed.isEmpty else { return ([], []) }
@@ -63,7 +64,7 @@ enum TripDetector {
 
         func flushRun() {
             guard !currentRun.isEmpty else { return }
-            if let trip = promoteRunToTrip(currentRun, home: home, minDays: minDays) {
+            if let trip = promoteRunToTrip(currentRun, home: home, minDays: minDays, calendar: calendar) {
                 trips.append(trip)
             } else {
                 loose.append(contentsOf: currentRun)
@@ -90,14 +91,14 @@ enum TripDetector {
     private static func promoteRunToTrip(
         _ run: [Visit],
         home: CLLocationCoordinate2D,
-        minDays: Int
+        minDays: Int,
+        calendar: Calendar
     ) -> Trip? {
         guard let first = run.first, let last = run.last else { return nil }
-        let cal = Calendar.current
-        let startDay = cal.startOfDay(for: first.arrivalDate)
+        let startDay = calendar.startOfDay(for: first.arrivalDate)
         let endRef = last.departureDate ?? last.arrivalDate
-        let endDay = cal.startOfDay(for: endRef)
-        let spanDays = (cal.dateComponents([.day], from: startDay, to: endDay).day ?? 0) + 1
+        let endDay = calendar.startOfDay(for: endRef)
+        let spanDays = (calendar.dateComponents([.day], from: startDay, to: endDay).day ?? 0) + 1
         guard spanDays >= minDays else { return nil }
         return buildTrip(from: run, home: home)
     }
