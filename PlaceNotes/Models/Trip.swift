@@ -49,7 +49,7 @@ enum LogbookSection: Identifiable {
         case .trip(let t):
             return t.startDate
         case .thisWeek(let visits):
-            return visits.first?.arrivalDate ?? Date()
+            return visits.first?.arrivalDate ?? .distantPast
         case .earlier(let y, let m, _):
             var comps = DateComponents()
             comps.year = y
