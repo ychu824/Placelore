@@ -10,10 +10,10 @@ enum TripDetector {
     static func computeHomeCentroid(
         visits: [Visit],
         referenceDate: Date = Date(),
-        lookbackDays: Int = 60
+        lookbackDays: Int = 60,
+        calendar: Calendar = .current
     ) -> CLLocationCoordinate2D? {
         guard !visits.isEmpty else { return nil }
-        let calendar = Calendar.current
         let cutoff = calendar.date(byAdding: .day, value: -lookbackDays, to: referenceDate) ?? referenceDate
 
         let overnightVisits = visits.filter { v in
@@ -28,9 +28,11 @@ enum TripDetector {
             for v in overnightVisits {
                 guard let p = v.place else { continue }
                 counts[p.id, default: (0, p)].count += 1
-                counts[p.id]?.place = p
             }
-            if let best = counts.values.max(by: { $0.count < $1.count }) {
+            if let best = counts.values.max(by: { lhs, rhs in
+                if lhs.count != rhs.count { return lhs.count < rhs.count }
+                return lhs.place.id.uuidString > rhs.place.id.uuidString
+            }) {
                 return best.place.coordinate
             }
         }

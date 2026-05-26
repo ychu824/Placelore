@@ -28,16 +28,22 @@ final class TripDetectorTests: XCTestCase {
         return v
     }
 
+    private let testCalendar: Calendar = {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/New_York")!
+        return cal
+    }()
+
     private func date(_ y: Int, _ mo: Int, _ d: Int, _ h: Int = 12, _ mi: Int = 0) -> Date {
         var comps = DateComponents()
         comps.year = y; comps.month = mo; comps.day = d; comps.hour = h; comps.minute = mi
-        return Calendar.current.date(from: comps)!
+        return testCalendar.date(from: comps)!
     }
 
     // MARK: - computeHomeCentroid
 
     func testComputeHomeCentroidReturnsNilWhenNoVisits() {
-        let result = TripDetector.computeHomeCentroid(visits: [], referenceDate: date(2026, 5, 26), lookbackDays: 60)
+        let result = TripDetector.computeHomeCentroid(visits: [], referenceDate: date(2026, 5, 26), lookbackDays: 60, calendar: testCalendar)
         XCTAssertNil(result)
     }
 
@@ -62,7 +68,7 @@ final class TripDetectorTests: XCTestCase {
             place: cafe
         ))
 
-        let result = TripDetector.computeHomeCentroid(visits: visits, referenceDate: date(2026, 5, 26), lookbackDays: 60)
+        let result = TripDetector.computeHomeCentroid(visits: visits, referenceDate: date(2026, 5, 26), lookbackDays: 60, calendar: testCalendar)
         XCTAssertNotNil(result)
         XCTAssertEqual(result!.latitude, 40.7, accuracy: 0.0001)
         XCTAssertEqual(result!.longitude, -74.0, accuracy: 0.0001)
@@ -72,7 +78,7 @@ final class TripDetectorTests: XCTestCase {
         let container = makeContainer()
         let p = makePlace(in: container, name: "First", lat: 1, lon: 2)
         let visits = [makeVisit(arrival: date(2026, 5, 1, 12, 0), departure: date(2026, 5, 1, 14, 0), place: p)]
-        let result = TripDetector.computeHomeCentroid(visits: visits, referenceDate: date(2026, 5, 26), lookbackDays: 60)
+        let result = TripDetector.computeHomeCentroid(visits: visits, referenceDate: date(2026, 5, 26), lookbackDays: 60, calendar: testCalendar)
         XCTAssertNotNil(result)
         XCTAssertEqual(result!.latitude, 1, accuracy: 0.0001)
         XCTAssertEqual(result!.longitude, 2, accuracy: 0.0001)
@@ -98,7 +104,7 @@ final class TripDetectorTests: XCTestCase {
             place: newHome
         ))
 
-        let result = TripDetector.computeHomeCentroid(visits: visits, referenceDate: date(2026, 5, 26), lookbackDays: 60)
+        let result = TripDetector.computeHomeCentroid(visits: visits, referenceDate: date(2026, 5, 26), lookbackDays: 60, calendar: testCalendar)
         XCTAssertEqual(result!.latitude, 2, accuracy: 0.0001)
     }
 }
