@@ -34,18 +34,6 @@ struct ContentView: View {
                 }
         }
         .tint(.accentColor)
-        .fullScreenCover(isPresented: $quickCapture.showCamera) {
-            DynamicIslandCameraView(
-                onCaptured: { image in
-                    quickCapture.showCamera = false
-                    quickCapture.photoCaptured(image: image, exifLocation: nil)
-                },
-                onClose: {
-                    quickCapture.showCamera = false
-                    quickCapture.cancelCapture()
-                }
-            )
-        }
         .sheet(isPresented: Binding(
             get: { quickCapture.state == .manualPickNeeded },
             set: { newValue in
@@ -90,8 +78,31 @@ struct ContentView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .overlay {
+            if quickCapture.showCamera {
+                DynamicIslandCameraView(
+                    onCaptured: { image in
+                        quickCapture.photoCaptured(image: image, exifLocation: nil)
+                        quickCapture.showCamera = false
+                    },
+                    onClose: { quickCapture.cancelCapture() }
+                )
+                .transition(.dynamicIslandExpand)
+                .zIndex(100)
+            }
+        }
         .animation(.easeInOut(duration: 0.2), value: quickCapture.isWorkingInBackground)
         .animation(.easeInOut(duration: 0.2), value: quickCapture.state)
+        .animation(.spring(response: 0.5, dampingFraction: 0.82), value: quickCapture.showCamera)
+    }
+}
+
+extension AnyTransition {
+    /// Grows the camera page out of the Dynamic Island pill at top-center,
+    /// so opening the camera reads as the island expanding.
+    static var dynamicIslandExpand: AnyTransition {
+        .scale(scale: 0.06, anchor: UnitPoint(x: 0.5, y: 0.04))
+            .combined(with: .opacity)
     }
 }
 

@@ -19,8 +19,10 @@ struct TrackingControlView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 28) {
+                pullDownHint
+                    .padding(.top, 4)
+
                 trackingChip
-                    .padding(.top, 8)
 
                 CurrentlyAtCard()
 
@@ -29,20 +31,25 @@ struct TrackingControlView: View {
                 PolaroidDecorationBand(entries: Array(recentJournalEntries.prefix(20)))
 
                 PhotographicShutterButton(isBusy: isBusy) {
-                    if isTrackingActive {
-                        attemptCapture()
-                    } else {
-                        showTrackingOffAlert = true
-                    }
+                    logThisPlace()
                 }
 
-                Text("Tap to log this place")
+                Text("Tap or pull down to log this place")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
                 Spacer()
             }
             .padding()
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 24)
+                    .onEnded { value in
+                        guard value.translation.height > 80,
+                              value.translation.height > abs(value.translation.width) else { return }
+                        logThisPlace()
+                    }
+            )
             .navigationTitle("Placelore")
             .sheet(isPresented: $showTrackingSheet) { trackingSheet }
             .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
@@ -124,6 +131,28 @@ struct TrackingControlView: View {
 
     private var isTrackingActive: Bool {
         trackingViewModel.trackingManager.state.status == .active
+    }
+
+    private func logThisPlace() {
+        if isTrackingActive {
+            attemptCapture()
+        } else {
+            showTrackingOffAlert = true
+        }
+    }
+
+    @ViewBuilder
+    private var pullDownHint: some View {
+        VStack(spacing: 2) {
+            Image(systemName: "chevron.compact.down")
+                .font(.system(size: 24, weight: .semibold))
+            Text("Pull down for camera")
+                .font(.caption2)
+        }
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Pull down to open the camera")
     }
 
     private func attemptCapture() {
