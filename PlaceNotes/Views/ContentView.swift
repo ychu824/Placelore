@@ -35,17 +35,16 @@ struct ContentView: View {
         }
         .tint(.accentColor)
         .fullScreenCover(isPresented: $quickCapture.showCamera) {
-            CameraPickerView(
-                onCaptured: { image, exif in
+            DynamicIslandCameraView(
+                onCaptured: { image in
                     quickCapture.showCamera = false
-                    quickCapture.photoCaptured(image: image, exifLocation: exif)
+                    quickCapture.photoCaptured(image: image, exifLocation: nil)
                 },
-                onCancelled: {
+                onClose: {
                     quickCapture.showCamera = false
                     quickCapture.cancelCapture()
                 }
             )
-            .ignoresSafeArea()
         }
         .sheet(isPresented: Binding(
             get: { quickCapture.state == .manualPickNeeded },
