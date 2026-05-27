@@ -6,44 +6,19 @@ struct LogbookView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var places: [Place]
     @EnvironmentObject var settings: AppSettings
+
+    @StateObject private var viewModel = LogbookViewModel()
+
     @State private var visitForAlternatives: Visit?
     @State private var visitToDelete: Visit?
     @State private var showDeleteConfirmation = false
     @State private var refreshID = UUID()
     @State private var trajectoryDay: Date?
 
-    private var groupedVisits: [(year: Int, months: [(month: Int, visits: [Visit])])] {
-        let minStay = settings.minStayMinutes
-        let allVisits = places
-            .flatMap { $0.visits }
-            .filter { $0.isQuickCapture || !$0.journalEntries.isEmpty || $0.durationMinutes >= minStay }
-            .sorted { $0.arrivalDate > $1.arrivalDate }
-
-        let calendar = Calendar.current
-        var yearMonthMap: [Int: [Int: [Visit]]] = [:]
-
-        for visit in allVisits {
-            let year = calendar.component(.year, from: visit.arrivalDate)
-            let month = calendar.component(.month, from: visit.arrivalDate)
-            yearMonthMap[year, default: [:]][month, default: []].append(visit)
-        }
-
-        return yearMonthMap
-            .sorted { $0.key > $1.key }
-            .map { year, months in
-                let sortedMonths = months
-                    .sorted { $0.key > $1.key }
-                    .map { month, visits in
-                        (month: month, visits: visits.sorted { $0.arrivalDate > $1.arrivalDate })
-                    }
-                return (year: year, months: sortedMonths)
-            }
-    }
-
     var body: some View {
         NavigationStack {
             Group {
-                if groupedVisits.isEmpty {
+                if viewModel.sections.isEmpty {
                     ContentUnavailableView(
                         "No Visits Yet",
                         systemImage: "book.closed",
@@ -51,46 +26,37 @@ struct LogbookView: View {
                     )
                 } else {
                     List {
-                        ForEach(groupedVisits, id: \.year) { yearGroup in
-                            Section {
-                                ForEach(yearGroup.months, id: \.month) { monthGroup in
-                                    MonthSection(
-                                        year: yearGroup.year,
-                                        month: monthGroup.month,
-                                        visits: monthGroup.visits,
-                                        onPickAlternative: { visit in
-                                            visitForAlternatives = visit
-                                        },
-                                        onDelete: { visit in
-                                            visitToDelete = visit
-                                            showDeleteConfirmation = true
-                                        },
-                                        onShowTrajectory: { arrival in
-                                            trajectoryDay = Calendar.current.startOfDay(for: arrival)
-                                        }
-                                    )
-                                }
-                            } header: {
-                                Text(String(yearGroup.year))
-                                    .font(.title2.bold())
-                                    .foregroundStyle(.primary)
-                                    .textCase(nil)
-                            }
+                        ForEach(viewModel.sections) { section in
+                            sectionView(section)
                         }
                     }
                     .listStyle(.insetGrouped)
                     .id(refreshID)
                     .refreshable {
+                        viewModel.refresh(places: places, settings: settings)
                         refreshID = UUID()
                     }
                 }
             }
             .navigationTitle("Logbook")
+            .task(id: places.count) {
+                viewModel.refresh(places: places, settings: settings)
+            }
+            .onChange(of: settings.tripMinDistanceKm) { _, _ in
+                viewModel.refresh(places: places, settings: settings)
+            }
+            .onChange(of: settings.tripMinDays) { _, _ in
+                viewModel.refresh(places: places, settings: settings)
+            }
+            .onChange(of: settings.minStayMinutes) { _, _ in
+                viewModel.refresh(places: places, settings: settings)
+            }
             .navigationDestination(item: $trajectoryDay) { day in
                 DayTrajectoryView(day: day)
             }
             .sheet(item: $visitForAlternatives) { visit in
                 AlternativePlacePicker(visit: visit) {
+                    viewModel.refresh(places: places, settings: settings)
                     refreshID = UUID()
                 }
             }
@@ -105,6 +71,7 @@ struct LogbookView: View {
                         modelContext.delete(visit)
                         try? modelContext.save()
                         visitToDelete = nil
+                        viewModel.refresh(places: places, settings: settings)
                     }
                 }
                 Button("Cancel", role: .cancel) {
@@ -114,6 +81,91 @@ struct LogbookView: View {
                 Text("This visit will be permanently deleted.")
             }
         }
+    }
+
+    @ViewBuilder
+    private func sectionView(_ section: LogbookSection) -> some View {
+        switch section {
+        case .trip(let trip):
+            Section {
+                NavigationLink {
+                    TripDetailView(trip: trip)
+                } label: {
+                    TripHeroCard(trip: trip)
+                }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
+        case .thisWeek(let visits):
+            Section {
+                ForEach(Array(visits.enumerated()), id: \.element.id) { idx, visit in
+                    visitRow(visit: visit, all: visits, index: idx)
+                }
+            } header: {
+                Label("This week", systemImage: "calendar")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
+            }
+        case .earlier(let year, let month, let visits):
+            Section {
+                ForEach(Array(visits.enumerated()), id: \.element.id) { idx, visit in
+                    visitRow(visit: visit, all: visits, index: idx)
+                }
+            } header: {
+                Text(earlierHeader(year: year, month: month))
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .textCase(nil)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func visitRow(visit: Visit, all: [Visit], index: Int) -> some View {
+        if let place = visit.place {
+            let nextSameDay: Date? = {
+                let nextIdx = index - 1
+                guard nextIdx >= 0 else { return nil }
+                let next = all[nextIdx]
+                return Calendar.current.isDate(next.arrivalDate, inSameDayAs: visit.arrivalDate) ? next.arrivalDate : nil
+            }()
+            NavigationLink {
+                PlaceDetailView(place: place)
+            } label: {
+                LogbookVisitRow(visit: visit, place: place, nextSameDayArrival: nextSameDay) {
+                    visitForAlternatives = visit
+                }
+            }
+            .buttonStyle(.plain)
+            .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                Button {
+                    trajectoryDay = Calendar.current.startOfDay(for: visit.arrivalDate)
+                } label: {
+                    Label("Map", systemImage: "map")
+                }
+                .tint(.blue)
+            }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button {
+                    visitToDelete = visit
+                    showDeleteConfirmation = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+                .tint(.red)
+            }
+        }
+    }
+
+    private func earlierHeader(year: Int, month: Int) -> String {
+        var comps = DateComponents()
+        comps.year = year
+        comps.month = month
+        let date = Calendar.current.date(from: comps) ?? Date()
+        let f = DateFormatter()
+        f.dateFormat = "MMMM yyyy"
+        return f.string(from: date)
     }
 }
 
@@ -290,84 +342,6 @@ private struct AlternativePlacePicker: View {
         try? modelContext.save()
         onPlaceChanged?()
         dismiss()
-    }
-}
-
-private struct MonthSection: View {
-    let year: Int
-    let month: Int
-    let visits: [Visit]
-    var onPickAlternative: ((Visit) -> Void)?
-    var onDelete: ((Visit) -> Void)?
-    var onShowTrajectory: ((Date) -> Void)?
-
-    private var monthName: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM"
-        var components = DateComponents()
-        components.month = month
-        let date = Calendar.current.date(from: components) ?? Date()
-        return formatter.string(from: date)
-    }
-
-    private var uniquePlaceCount: Int {
-        Set(visits.compactMap { $0.place?.id }).count
-    }
-
-    private var totalMinutes: Int {
-        visits.reduce(0) { $0 + $1.durationMinutes }
-    }
-
-    var body: some View {
-        DisclosureGroup {
-            ForEach(Array(visits.enumerated()), id: \.element.id) { index, visit in
-                if let place = visit.place {
-                    let nextSameDay: Date? = {
-                        guard index > 0 else { return nil }
-                        let next = visits[index - 1]
-                        return Calendar.current.isDate(next.arrivalDate, inSameDayAs: visit.arrivalDate) ? next.arrivalDate : nil
-                    }()
-                    NavigationLink {
-                        PlaceDetailView(place: place)
-                    } label: {
-                        LogbookVisitRow(visit: visit, place: place, nextSameDayArrival: nextSameDay) {
-                            onPickAlternative?(visit)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                        Button {
-                            onShowTrajectory?(visit.arrivalDate)
-                        } label: {
-                            Label("Map", systemImage: "map")
-                        }
-                        .tint(.blue)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button {
-                            onDelete?(visit)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        .tint(.red)
-                    }
-                }
-            }
-        } label: {
-            HStack {
-                Text(monthName)
-                    .font(.headline)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(visits.count) visits")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text("\(uniquePlaceCount) places")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
     }
 }
 
