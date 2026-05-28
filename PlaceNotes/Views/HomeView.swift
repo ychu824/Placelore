@@ -7,12 +7,8 @@ struct HomeView: View {
     @EnvironmentObject var quickCapture: QuickCaptureViewModel
     @Environment(\.modelContext) private var modelContext
 
-    @Query(
-        filter: #Predicate<JournalEntry> { !$0.photoAssetIdentifiers.isEmpty },
-        sort: \JournalEntry.date,
-        order: .reverse
-    )
-    private var photoEntries: [JournalEntry]
+    @Query(sort: \JournalEntry.date, order: .reverse)
+    private var allEntries: [JournalEntry]
 
     @State private var pullOffset: CGFloat = 0
     @State private var isCommitting = false
@@ -29,7 +25,7 @@ struct HomeView: View {
     private static let pullThreshold: CGFloat = 120
     private static let scrollSpaceName = "home-scroll"
 
-    private var items: [HomePhotoItem] { HomePhotoFeed.flatten(photoEntries) }
+    private var items: [HomePhotoItem] { HomePhotoFeed.flatten(allEntries) }
     private var progress: Double {
         PullProgress.progress(distance: pullOffset, threshold: Self.pullThreshold)
     }
