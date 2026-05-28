@@ -65,7 +65,7 @@ targets:
       base:
         INFOPLIST_FILE: PlaceNotes/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: dev.placelore.app
-        MARKETING_VERSION: "1.2.1"
+        MARKETING_VERSION: "1.3.0"
         CURRENT_PROJECT_VERSION: 1
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon-Outdoor
         ASSETCATALOG_COMPILER_ALTERNATE_APPICON_NAMES: "AppIcon AppIcon-Night"
