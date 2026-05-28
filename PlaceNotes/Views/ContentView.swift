@@ -8,9 +8,9 @@ struct ContentView: View {
 
     var body: some View {
         TabView {
-            TrackingControlView()
+            HomeView()
                 .tabItem {
-                    Label("Tracking", systemImage: "location.fill")
+                    Label("Home", systemImage: "photo.on.rectangle")
                 }
 
             LogbookView()
