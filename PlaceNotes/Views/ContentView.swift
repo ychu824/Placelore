@@ -56,9 +56,16 @@ struct ContentView: View {
             }
         )) {
             ManualPlacePickerView(
+                nearCoordinate: quickCapture.pendingApproximateCoordinate,
                 onPicked: { place in
                     if let id = quickCapture.pendingPhotoAssetId {
                         quickCapture.manualPlaceSelected(place, photoAssetId: id)
+                    }
+                },
+                onUseCurrentLocation: {
+                    if let id = quickCapture.pendingPhotoAssetId,
+                       let coord = quickCapture.pendingApproximateCoordinate {
+                        quickCapture.manualLocationSelected(coordinate: coord, photoAssetId: id)
                     }
                 },
                 onCancelled: { quickCapture.cancelCapture() }
