@@ -15,29 +15,29 @@ struct AlternativePlacePicker: View {
         NavigationStack {
             List {
                 if let place = visit.place {
-                    Section("Current") {
-                        Button {
-                            confirmPlace()
-                        } label: {
-                            HStack {
-                                Image(systemName: PlaceCategorizer.icon(for: place.category))
-                                    .foregroundStyle(Color.accentColor)
-                                    .frame(width: 28)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(place.displayName)
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(.primary)
-                                    if let category = place.category {
-                                        Text(category)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
+                    Section("We recorded") {
+                        HStack {
+                            Image(systemName: PlaceCategorizer.icon(for: place.category))
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(place.displayName)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                if let category = place.category {
+                                    Text(category)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
-                                Spacer()
-                                Text("Confirm")
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(Color.accentColor)
                             }
+                            Spacer()
+                        }
+
+                        Button {
+                            markAccurate()
+                        } label: {
+                            Label("This is correct", systemImage: "hand.thumbsup")
+                                .foregroundStyle(.green)
                         }
                     }
                 }
@@ -73,15 +73,22 @@ struct AlternativePlacePicker: View {
                             }
                         }
                     }
-                } else {
-                    ContentUnavailableView(
-                        "No Alternatives",
-                        systemImage: "mappin.slash",
-                        description: Text("No other nearby places were found when this visit was recorded.")
-                    )
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        markWrong()
+                    } label: {
+                        Label(
+                            visit.alternativePlaces.isEmpty ? "This is wrong" : "None of these — still wrong",
+                            systemImage: "hand.thumbsdown"
+                        )
+                    }
+                } footer: {
+                    Text("Your feedback is logged to measure how well place prediction is working.")
                 }
             }
-            .navigationTitle("Wrong Place?")
+            .navigationTitle("How did we do?")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -103,17 +110,33 @@ struct AlternativePlacePicker: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 
-    private func confirmPlace() {
-        visit.placeConfirmed = true
-        try? modelContext.save()
+    private func markAccurate() {
+        PredictionFeedbackRecorder.record(.accurate, for: visit, in: modelContext)
+        onPlaceChanged?()
+        dismiss()
+    }
+
+    private func markWrong() {
+        PredictionFeedbackRecorder.record(.wrong, for: visit, in: modelContext)
         onPlaceChanged?()
         dismiss()
     }
 
     private func reassignVisit(to candidate: PlaceCandidate) {
+        // Record the corrected feedback while `visit.place` still holds the
+        // original prediction, so the snapshot captures what failed.
+        PredictionFeedbackRecorder.record(
+            .corrected,
+            for: visit,
+            correctedName: candidate.name,
+            correctedCategory: candidate.category,
+            correctionSource: "alternative",
+            in: modelContext
+        )
+
         let threshold = 0.0001
         let descriptor = FetchDescriptor<Place>()
         let allPlaces = (try? modelContext.fetch(descriptor)) ?? []

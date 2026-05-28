@@ -8,7 +8,8 @@ struct LogbookView: View {
 
     @StateObject private var viewModel = LogbookViewModel()
 
-    @State private var visitForAlternatives: Visit?
+    @Query private var feedbackRecords: [PredictionFeedback]
+    @State private var visitForFeedback: Visit?
     @State private var visitToDelete: Visit?
     @State private var showDeleteConfirmation = false
     @State private var refreshID = UUID()
@@ -53,7 +54,7 @@ struct LogbookView: View {
             .navigationDestination(item: $trajectoryDay) { day in
                 DayTrajectoryView(day: day)
             }
-            .sheet(item: $visitForAlternatives) { visit in
+            .sheet(item: $visitForFeedback) { visit in
                 AlternativePlacePicker(visit: visit) {
                     viewModel.refresh(places: places, settings: settings)
                     refreshID = UUID()
@@ -132,9 +133,20 @@ struct LogbookView: View {
             NavigationLink {
                 PlaceDetailView(place: place)
             } label: {
-                LogbookVisitRow(visit: visit, place: place, nextSameDayArrival: nextSameDay) {
-                    visitForAlternatives = visit
-                }
+                LogbookVisitRow(
+                    visit: visit,
+                    place: place,
+                    nextSameDayArrival: nextSameDay,
+                    feedbackVerdict: feedbackRecords.first { $0.visitID == visit.id }?.verdict,
+                    onMarkAccurate: {
+                        PredictionFeedbackRecorder.record(.accurate, for: visit, in: modelContext)
+                        viewModel.refresh(places: places, settings: settings)
+                        refreshID = UUID()
+                    },
+                    onOpenFeedback: {
+                        visitForFeedback = visit
+                    }
+                )
             }
             .buttonStyle(.plain)
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
