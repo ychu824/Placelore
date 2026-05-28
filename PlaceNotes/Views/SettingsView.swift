@@ -64,6 +64,10 @@ struct SettingsView: View {
     @State private var retentionInputText = ""
     @State private var exportData: Data = Data()
     @State private var showExporter = false
+    @State private var feedbackCount: Int = 0
+    @State private var feedbackAccurateCount: Int = 0
+    @State private var feedbackExportData: Data = Data()
+    @State private var showFeedbackExporter = false
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -185,6 +189,20 @@ struct SettingsView: View {
                 .onAppear { refreshRawSampleCount() }
 
                 Section {
+                    LabeledContent("Feedback Collected", value: "\(feedbackCount)")
+                    LabeledContent("Predicted Correctly", value: feedbackPrecisionText)
+                    Button("Export Feedback CSV") {
+                        exportFeedback()
+                    }
+                    .disabled(feedbackCount == 0)
+                } header: {
+                    Text("Prediction Feedback")
+                } footer: {
+                    Text("Your “correct / wrong” verdicts on recorded places are logged here. Export the labeled CSV to analyze prediction quality offline or train a model.")
+                }
+                .onAppear { refreshFeedbackStats() }
+
+                Section {
                     Button(role: .destructive) {
                         showClearDataConfirmation = true
                     } label: {
@@ -264,7 +282,35 @@ struct SettingsView: View {
                 contentType: .commaSeparatedText,
                 defaultFilename: "location_samples_\(formattedDate())"
             ) { _ in }
+            .fileExporter(
+                isPresented: $showFeedbackExporter,
+                document: CSVFile(data: feedbackExportData),
+                contentType: .commaSeparatedText,
+                defaultFilename: "prediction_feedback_\(formattedDate())"
+            ) { _ in }
         }
+    }
+
+    private func refreshFeedbackStats() {
+        feedbackCount = (try? modelContext.fetchCount(FetchDescriptor<PredictionFeedback>())) ?? 0
+        let accurateRaw = PredictionVerdict.accurate.rawValue
+        let descriptor = FetchDescriptor<PredictionFeedback>(
+            predicate: #Predicate { $0.verdictRaw == accurateRaw }
+        )
+        feedbackAccurateCount = (try? modelContext.fetchCount(descriptor)) ?? 0
+    }
+
+    private var feedbackPrecisionText: String {
+        guard feedbackCount > 0 else { return "—" }
+        let pct = Int((Double(feedbackAccurateCount) / Double(feedbackCount) * 100).rounded())
+        return "\(pct)% (\(feedbackAccurateCount)/\(feedbackCount))"
+    }
+
+    private func exportFeedback() {
+        let descriptor = FetchDescriptor<PredictionFeedback>(sortBy: [SortDescriptor(\.createdAt)])
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        feedbackExportData = PredictionFeedbackExporter.exportCSV(from: records)
+        showFeedbackExporter = true
     }
 
     private func refreshRawSampleCount() {

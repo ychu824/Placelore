@@ -10,7 +10,8 @@ enum PlaceNotesSchemaV1: VersionedSchema {
             Visit.self,
             CustomCategory.self,
             JournalEntry.self,
-            RawLocationSample.self
+            RawLocationSample.self,
+            PredictionFeedback.self
         ]
     }
 }
