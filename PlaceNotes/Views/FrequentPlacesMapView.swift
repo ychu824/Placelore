@@ -121,15 +121,21 @@ struct FrequentPlacesMapView: View {
     }
 
     /// Builds a combined ranking list: frequent places from the viewModel plus
-    /// any place with a journal entry that didn't clear the frequency threshold
-    /// (e.g. photo quick-captures, which create a 60-second synthetic visit).
-    /// Without this, photo-logged places never appear on the map and the user
-    /// can't open their detail sheet to set a nickname.
+    /// any recently-visited place that didn't clear the frequency threshold —
+    /// short stays below `minStayMinutes` (e.g. the 24-minute "Unknown Place")
+    /// and photo quick-captures with a journal entry. These are still real
+    /// persisted places shown in the day trajectory, so without this they go
+    /// missing from the map and the user can't open their detail sheet.
     private func mapRankings() -> [PlaceRanking] {
         var rankings = Array(viewModel.monthlyPlaces.prefix(50))
         let included = Set(rankings.map { $0.place.id })
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? .distantPast
         let extras = places
-            .filter { !$0.journalEntries.isEmpty && !included.contains($0.id) }
+            .filter { place in
+                guard !included.contains(place.id) else { return false }
+                return !place.journalEntries.isEmpty
+                    || place.visits.contains { $0.arrivalDate >= cutoff }
+            }
             .map { PlaceRanking(place: $0, qualifiedStays: 0, totalMinutes: 0) }
         rankings.append(contentsOf: extras)
         return rankings
