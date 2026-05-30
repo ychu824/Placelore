@@ -34,12 +34,12 @@ struct CaptureLiveActivity: Widget {
                     }
                 }
             } compactLeading: {
-                Image(systemName: "camera.fill")
+                Text("📸")
             } compactTrailing: {
                 Text("Capture")
                     .font(.caption2.weight(.semibold))
             } minimal: {
-                Image(systemName: "camera.fill")
+                Text("📸")
             }
             .widgetURL(CaptureActivityAttributes.captureURL)
             .keylineTint(.green)
