@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 import SwiftData
 import os
@@ -46,12 +47,9 @@ enum PredictionFeedbackRecorder {
         )
         context.insert(feedback)
 
-        visit.feedbackVerdict = verdict
-        // A deliberate verdict resolves the "wrong place?" affordance, except an
-        // unresolved "wrong" — the place is still incorrect there.
-        if verdict != .wrong {
-            visit.placeConfirmed = true
-        }
+        // An unresolved "wrong" means the place is still unconfirmed; accurate
+        // and corrected verdicts are deliberate confirmations.
+        visit.placeConfirmed = verdict != .wrong
 
         do {
             try context.save()
@@ -60,3 +58,4 @@ enum PredictionFeedbackRecorder {
         }
     }
 }
+#endif

@@ -86,6 +86,7 @@ enum DebugSeed {
 
     @MainActor
     static func clearAllData(in context: ModelContext) {
+        deleteAll(of: PredictionFeedback.self, in: context)
         deleteAll(of: RawLocationSample.self, in: context)
         deleteAll(of: JournalEntry.self, in: context)
         deleteAll(of: Visit.self, in: context)
