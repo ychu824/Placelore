@@ -6,6 +6,8 @@ struct ContentView: View {
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var quickCapture: QuickCaptureViewModel
 
+    @State private var showCameraPermissionAlert = false
+
     var body: some View {
         TabView {
             HomeView()
@@ -93,6 +95,26 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: quickCapture.isWorkingInBackground)
         .animation(.easeInOut(duration: 0.2), value: quickCapture.state)
+        .onOpenURL { url in handleDeepLink(url) }
+        .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Enable Camera access in Settings → Placelore to capture photos.")
+        }
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "placelore", url.host == "capture" else { return }
+        Task {
+            let granted = await CameraPickerView.requestCameraPermission()
+            await MainActor.run {
+                if granted {
+                    quickCapture.beginCapture()
+                } else {
+                    showCameraPermissionAlert = true
+                }
+            }
+        }
     }
 }
 

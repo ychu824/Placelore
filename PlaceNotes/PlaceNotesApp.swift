@@ -10,6 +10,7 @@ struct PlaceNotesApp: App {
     let locationManager: LocationManager
     let trackingManager: TrackingManager
     let modelContainer: ModelContainer
+    let liveActivityManager: LiveActivityManager
 
     init() {
         // Use separate stores so debug mock data never leaks into release
@@ -64,17 +65,25 @@ struct PlaceNotesApp: App {
         // resume tracking.
         let locationManager = LocationManager(settings: settings)
         locationManager.configure(modelContext: container.mainContext)
-        locationManager.onVisitRecorded = { visit in
-            if let place = visit.place {
-                NotificationManager.shared.checkMilestone(for: place)
-            }
-        }
         self.locationManager = locationManager
 
         // TrackingManager.init -> checkPauseExpiry auto-resumes monitoring when
         // the persisted state is .active, which is what makes background
         // relaunches actually start collecting again.
-        self.trackingManager = TrackingManager(locationManager: locationManager, settings: settings)
+        let trackingManager = TrackingManager(locationManager: locationManager, settings: settings)
+        self.trackingManager = trackingManager
+
+        // Mirror tracking state into the Dynamic Island capture Live Activity.
+        let liveActivityManager = LiveActivityManager()
+        liveActivityManager.observe(trackingManager)
+        self.liveActivityManager = liveActivityManager
+
+        locationManager.onVisitRecorded = { visit in
+            if let place = visit.place {
+                NotificationManager.shared.checkMilestone(for: place)
+                liveActivityManager.updatePlace(place.displayName)
+            }
+        }
     }
 
     var body: some Scene {
