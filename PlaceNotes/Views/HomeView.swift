@@ -35,20 +35,7 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
-                content
-                if progress > 0 {
-                    Color.black.opacity(0.3 * progress)
-                        .ignoresSafeArea()
-                        .allowsHitTesting(false)
-                }
-                PullToCapturePill(progress: progress, isCommitting: isCommitting)
-                    .padding(.top, 6)
-                    .contentShape(Rectangle())
-                    .onTapGesture { commit() }
-                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isCommitting)
-                    .animation(.easeOut(duration: 0.1), value: progress)
-            }
+            content
             .navigationBarHidden(true)
             .onChange(of: progress) { oldValue, newValue in
                 handleProgressChange(old: oldValue, new: newValue)
