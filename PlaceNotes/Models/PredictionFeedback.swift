@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 import SwiftData
 
@@ -88,3 +89,4 @@ final class PredictionFeedback {
         self.correctionSource = correctionSource
     }
 }
+#endif
