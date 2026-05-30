@@ -37,10 +37,6 @@ final class Visit {
     /// Used to dim the "Not the right place?" affordance after a deliberate choice.
     var placeConfirmed: Bool = false
 
-    /// The user's latest prediction-accuracy verdict for this visit, if any.
-    /// Mirrors the canonical `PredictionFeedback` record so the row can show state.
-    var feedbackVerdictRaw: String?
-
     /// Journal entries explicitly tied to this visit. Quick-capture creates one;
     /// dwell-recorded visits start empty. Cascade-deletes when the visit is removed.
     @Relationship(deleteRule: .cascade, inverse: \JournalEntry.visit)
@@ -49,11 +45,6 @@ final class Visit {
     var confidence: PlaceConfidence {
         get { PlaceConfidence(rawValue: confidenceRaw ?? "") ?? .medium }
         set { confidenceRaw = newValue.rawValue }
-    }
-
-    var feedbackVerdict: PredictionVerdict? {
-        get { feedbackVerdictRaw.flatMap(PredictionVerdict.init(rawValue:)) }
-        set { feedbackVerdictRaw = newValue?.rawValue }
     }
 
     var alternativePlaces: [PlaceCandidate] {
