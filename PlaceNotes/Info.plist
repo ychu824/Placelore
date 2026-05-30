@@ -41,6 +41,19 @@
     <string>Placelore uses the camera to attach photos to your visits and journal entries for a place.</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>dev.placelore.app</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>placelore</string>
+            </array>
+        </dict>
+    </array>
     <key>UIBackgroundModes</key>
     <array>
         <string>location</string>

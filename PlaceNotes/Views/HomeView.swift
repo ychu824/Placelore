@@ -44,6 +44,8 @@ struct HomeView: View {
                 }
                 PullToCapturePill(progress: progress, isCommitting: isCommitting)
                     .padding(.top, 6)
+                    .contentShape(Rectangle())
+                    .onTapGesture { commit() }
                     .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isCommitting)
                     .animation(.easeOut(duration: 0.1), value: progress)
             }

@@ -82,8 +82,35 @@ targets:
           STRIP_INSTALLED_PRODUCT: YES
           DEAD_CODE_STRIPPING: YES
           VALIDATE_PRODUCT: YES
+    dependencies:
+      - target: PlaceCaptureWidget
     entitlements:
       path: PlaceNotes/PlaceNotes.entitlements
+
+  PlaceCaptureWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - PlaceCaptureWidget
+      - path: PlaceNotes/LiveActivity/CaptureActivityAttributes.swift
+    settings:
+      base:
+        INFOPLIST_FILE: PlaceCaptureWidget/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: dev.placelore.app.PlaceCaptureWidget
+        MARKETING_VERSION: "1.3.0"
+        CURRENT_PROJECT_VERSION: 1
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+      configs:
+        Release:
+          COPY_PHASE_STRIP: YES
+          STRIP_INSTALLED_PRODUCT: YES
+          DEAD_CODE_STRIPPING: YES
+          VALIDATE_PRODUCT: YES
 
   PlaceNotesTests:
     type: bundle.unit-test
