@@ -9,7 +9,10 @@ struct LogbookView: View {
 
     @StateObject private var viewModel = LogbookViewModel()
 
+    #if DEBUG
+    @Query private var feedbackRecords: [PredictionFeedback]
     @State private var visitForFeedback: Visit?
+    #endif
     @State private var visitToDelete: Visit?
     @State private var showDeleteConfirmation = false
     @State private var refreshID = UUID()
@@ -54,12 +57,14 @@ struct LogbookView: View {
             .navigationDestination(item: $trajectoryDay) { day in
                 DayTrajectoryView(day: day)
             }
+            #if DEBUG
             .sheet(item: $visitForFeedback) { visit in
                 PlaceFeedbackSheet(visit: visit) {
                     viewModel.refresh(places: places, settings: settings)
                     refreshID = UUID()
                 }
             }
+            #endif
             .alert("Delete Visit?", isPresented: $showDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
                     if let visit = visitToDelete {
@@ -133,10 +138,12 @@ struct LogbookView: View {
             NavigationLink {
                 PlaceDetailView(place: place)
             } label: {
+                #if DEBUG
                 LogbookVisitRow(
                     visit: visit,
                     place: place,
                     nextSameDayArrival: nextSameDay,
+                    feedbackVerdict: feedbackRecords.first { $0.visitID == visit.id }?.verdict,
                     onMarkAccurate: {
                         PredictionFeedbackRecorder.record(.accurate, for: visit, in: modelContext)
                         viewModel.refresh(places: places, settings: settings)
@@ -146,6 +153,13 @@ struct LogbookView: View {
                         visitForFeedback = visit
                     }
                 )
+                #else
+                LogbookVisitRow(
+                    visit: visit,
+                    place: place,
+                    nextSameDayArrival: nextSameDay
+                )
+                #endif
             }
             .buttonStyle(.plain)
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -179,6 +193,7 @@ struct LogbookView: View {
     }
 }
 
+#if DEBUG
 // MARK: - Place Feedback Sheet
 
 private struct PlaceFeedbackSheet: View {
@@ -377,4 +392,4 @@ private struct PlaceFeedbackSheet: View {
         dismiss()
     }
 }
-
+#endif

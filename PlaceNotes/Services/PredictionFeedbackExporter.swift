@@ -1,3 +1,4 @@
+#if DEBUG
 import Foundation
 
 /// Builds a CSV dataset from `PredictionFeedback` records for offline analysis
@@ -50,3 +51,4 @@ enum PredictionFeedbackExporter {
         return "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 }
+#endif

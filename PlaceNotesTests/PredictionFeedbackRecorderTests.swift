@@ -45,7 +45,6 @@ final class PredictionFeedbackRecorderTests: XCTestCase {
         XCTAssertEqual(records.first?.verdict, .accurate)
         XCTAssertEqual(records.first?.predictedPlaceName, "Blue Bottle")
         XCTAssertEqual(records.first?.alternativeCount, 1)
-        XCTAssertEqual(visit.feedbackVerdict, .accurate)
         XCTAssertTrue(visit.placeConfirmed)
     }
 
@@ -59,7 +58,7 @@ final class PredictionFeedbackRecorderTests: XCTestCase {
         let records = allFeedback(ctx)
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records.first?.verdict, .wrong)
-        XCTAssertEqual(visit.feedbackVerdict, .wrong)
+        XCTAssertFalse(visit.placeConfirmed)
     }
 
     func testWrongDoesNotConfirmPlace() throws {
@@ -69,7 +68,7 @@ final class PredictionFeedbackRecorderTests: XCTestCase {
         PredictionFeedbackRecorder.record(.wrong, for: visit, in: ctx)
 
         XCTAssertFalse(visit.placeConfirmed)
-        XCTAssertEqual(visit.feedbackVerdict, .wrong)
+        XCTAssertEqual(allFeedback(ctx).first?.verdict, .wrong)
     }
 
     func testCorrectedCapturesPredictionSnapshotAndCorrection() throws {
