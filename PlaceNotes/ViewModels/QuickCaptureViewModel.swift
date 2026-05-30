@@ -32,6 +32,11 @@ final class QuickCaptureViewModel: ObservableObject {
     @Published var showCamera: Bool = false
     @Published private(set) var pendingPhotoAssetId: String?
 
+    /// Best-available coordinate when auto-resolution failed (e.g. indoors on WiFi where
+    /// accuracy exceeds the strict attribution threshold). Not precise enough to attribute
+    /// automatically, but lets the manual picker show nearby places and offer to save here.
+    @Published private(set) var pendingApproximateCoordinate: CLLocationCoordinate2D?
+
     var isWorkingInBackground: Bool {
         switch state {
         case .savingPhoto, .resolvingPlace: return true
@@ -112,6 +117,7 @@ final class QuickCaptureViewModel: ObservableObject {
         pendingLiveFix = nil
         pendingKnownPlace = nil
         pendingPhotoAssetId = nil
+        pendingApproximateCoordinate = nil
         showCamera = false
         state = .idle
     }
@@ -122,6 +128,21 @@ final class QuickCaptureViewModel: ObservableObject {
             guard let self else { return }
             let result = await QuickCaptureService.logCapture(
                 coordinate: CLLocation(latitude: place.latitude, longitude: place.longitude),
+                photoAssetId: photoAssetId,
+                in: self.context
+            )
+            await MainActor.run { self.state = .done(self.toast(from: result)) }
+        }
+    }
+
+    /// User-confirmed save at the approximate coordinate when no precise fix was available.
+    /// Resolves to an existing nearby place or creates a new one via `PlaceResolver`.
+    func manualLocationSelected(coordinate: CLLocationCoordinate2D, photoAssetId: String) {
+        state = .resolvingPlace
+        Task { [weak self] in
+            guard let self else { return }
+            let result = await QuickCaptureService.logCapture(
+                coordinate: CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude),
                 photoAssetId: photoAssetId,
                 in: self.context
             )
@@ -205,9 +226,11 @@ final class QuickCaptureViewModel: ObservableObject {
             cachedFix: cachedFix
         )
         guard let coord else {
-            logger.info("No coordinate available — falling back to manual picker")
+            logger.info("No coordinate accurate enough to attribute — falling back to manual picker")
+            let approximate = (pendingLiveFix ?? exifLocation ?? cachedFix)?.coordinate
             await MainActor.run {
                 self.pendingPhotoAssetId = photoAssetId
+                self.pendingApproximateCoordinate = approximate
                 self.state = .manualPickNeeded
             }
             return
