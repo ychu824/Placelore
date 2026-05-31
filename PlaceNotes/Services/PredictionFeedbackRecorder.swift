@@ -53,6 +53,10 @@ enum PredictionFeedbackRecorder {
 
         do {
             try context.save()
+            let uploadPayload = PredictionFeedbackUploadPayload(record: feedback)
+            Task(priority: .utility) {
+                _ = await PredictionFeedbackUploader.upload(uploadPayload)
+            }
         } catch {
             logger.error("Failed to save prediction feedback: \(error.localizedDescription)")
         }
