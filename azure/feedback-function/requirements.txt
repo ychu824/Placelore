@@ -1,0 +1,3 @@
+azure-functions==1.21.3
+azure-identity==1.19.0
+azure-storage-file-datalake==12.17.0
