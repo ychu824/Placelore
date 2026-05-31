@@ -69,6 +69,7 @@ struct SettingsView: View {
     @State private var feedbackAccurateCount: Int = 0
     @State private var feedbackExportData: Data = Data()
     @State private var showFeedbackExporter = false
+    @State private var feedbackUploadStatus: String = "Not uploaded"
     #endif
 
     private var appVersion: String {
@@ -194,6 +195,11 @@ struct SettingsView: View {
                 Section {
                     LabeledContent("Feedback Collected", value: "\(feedbackCount)")
                     LabeledContent("Predicted Correctly", value: feedbackPrecisionText)
+                    LabeledContent("Azure Upload", value: feedbackUploadStatus)
+                    Button("Upload Feedback to Azure") {
+                        uploadFeedbackToAzure()
+                    }
+                    .disabled(feedbackCount == 0)
                     Button("Export Feedback CSV") {
                         exportFeedback()
                     }
@@ -323,6 +329,24 @@ struct SettingsView: View {
         let records = (try? modelContext.fetch(descriptor)) ?? []
         feedbackExportData = PredictionFeedbackExporter.exportCSV(from: records)
         showFeedbackExporter = true
+    }
+
+    private func uploadFeedbackToAzure() {
+        let descriptor = FetchDescriptor<PredictionFeedback>(sortBy: [SortDescriptor(\.createdAt)])
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        let payloads = records.map { PredictionFeedbackUploadPayload(record: $0) }
+        guard !payloads.isEmpty else {
+            feedbackUploadStatus = "No feedback"
+            return
+        }
+
+        feedbackUploadStatus = "Uploading…"
+        Task {
+            let summary = await PredictionFeedbackUploader.upload(payloads)
+            await MainActor.run {
+                feedbackUploadStatus = summary.displayText
+            }
+        }
     }
     #endif
 
