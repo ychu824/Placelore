@@ -11,7 +11,7 @@ struct CaptureLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Label {
-                        Text(context.state.placeName ?? "Placelore")
+                        Text(context.state.title)
                             .font(.caption.weight(.semibold))
                             .lineLimit(1)
                     } icon: {
@@ -25,12 +25,16 @@ struct CaptureLiveActivity: Widget {
                         .foregroundStyle(.secondary)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    Link(destination: CaptureActivityAttributes.captureURL) {
-                        Label("Capture a moment", systemImage: "camera.fill")
-                            .font(.callout.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(.white.opacity(0.15), in: Capsule())
+                    VStack(alignment: .leading, spacing: 8) {
+                        DwellSubtitle(state: context.state)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Link(destination: CaptureActivityAttributes.captureURL) {
+                            Label("Capture a moment", systemImage: "camera.fill")
+                                .font(.callout.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                                .background(.white.opacity(0.15), in: Capsule())
+                        }
                     }
                 }
             } compactLeading: {
@@ -47,6 +51,26 @@ struct CaptureLiveActivity: Widget {
     }
 }
 
+/// Live "time here · prior visits" line that mirrors the home card's meta row.
+/// Uses a relative-style date so the elapsed label updates on its own without
+/// the app having to push activity updates.
+private struct DwellSubtitle: View {
+    let state: CaptureActivityAttributes.ContentState
+
+    var body: some View {
+        if let arrivalDate = state.arrivalDate {
+            Label {
+                Text("\(arrivalDate, style: .relative) · \(state.priorVisitsText)")
+                    .lineLimit(1)
+            } icon: {
+                Image(systemName: "clock")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+}
+
 private struct LockScreenView: View {
     let state: CaptureActivityAttributes.ContentState
 
@@ -58,12 +82,16 @@ private struct LockScreenView: View {
                 .frame(width: 40, height: 40)
                 .background(.green.gradient, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             VStack(alignment: .leading, spacing: 2) {
-                Text(state.placeName ?? "Placelore")
+                Text(state.title)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
-                Text("Tap to capture a moment")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if state.arrivalDate != nil {
+                    DwellSubtitle(state: state)
+                } else {
+                    Text("Tap to capture a moment")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             Spacer()
         }

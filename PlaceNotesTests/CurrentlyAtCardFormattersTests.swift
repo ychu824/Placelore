@@ -141,4 +141,31 @@ final class CurrentlyAtCardFormattersTests: XCTestCase {
     func testPriorVisitsNegativeClampsToFirst() {
         XCTAssertEqual(CurrentlyAtFormatter.priorVisits(-1), String(localized: "First visit here"))
     }
+
+    // MARK: - Live Activity (Dynamic Island) content state
+
+    func testActivityTitleFallsBackToAppNameWhenNoPlace() {
+        let state = CaptureActivityAttributes.ContentState(placeName: nil)
+        XCTAssertEqual(state.title, "Placelore")
+    }
+
+    func testActivityTitleUsesNameWhenEmojiMissing() {
+        let state = CaptureActivityAttributes.ContentState(placeName: "Blue Bottle")
+        XCTAssertEqual(state.title, "Blue Bottle")
+    }
+
+    func testActivityTitleCombinesEmojiAndName() {
+        let state = CaptureActivityAttributes.ContentState(placeName: "Blue Bottle", placeEmoji: "☕️")
+        XCTAssertEqual(state.title, "☕️ Blue Bottle")
+    }
+
+    func testActivityPriorVisitsTextMirrorsCard() {
+        XCTAssertEqual(CaptureActivityAttributes.ContentState(placeName: "X", priorVisitCount: 0).priorVisitsText, "First visit here")
+        XCTAssertEqual(CaptureActivityAttributes.ContentState(placeName: "X", priorVisitCount: 1).priorVisitsText, "1 prior visit")
+        XCTAssertEqual(CaptureActivityAttributes.ContentState(placeName: "X", priorVisitCount: 7).priorVisitsText, "7 prior visits")
+    }
+
+    func testActivityPriorVisitsTextClampsNegative() {
+        XCTAssertEqual(CaptureActivityAttributes.ContentState(placeName: "X", priorVisitCount: -3).priorVisitsText, "First visit here")
+    }
 }

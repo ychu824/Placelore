@@ -81,7 +81,12 @@ struct PlaceNotesApp: App {
         locationManager.onVisitRecorded = { visit in
             if let place = visit.place {
                 NotificationManager.shared.checkMilestone(for: place)
-                liveActivityManager.updatePlace(place.displayName)
+                liveActivityManager.updatePlace(
+                    name: place.displayName,
+                    emoji: place.emoji,
+                    arrivalDate: visit.arrivalDate,
+                    priorVisitCount: place.priorVisitCount
+                )
             }
         }
     }

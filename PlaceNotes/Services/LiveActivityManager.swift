@@ -33,10 +33,17 @@ final class LiveActivityManager {
     }
 
     /// Update the dwell place shown in the island without restarting the activity.
-    func updatePlace(_ placeName: String?) {
+    /// Mirrors the home "You're at" card: place name + emoji, arrival time, and
+    /// prior-visit count.
+    func updatePlace(name: String?, emoji: String? = nil, arrivalDate: Date? = nil, priorVisitCount: Int = 0) {
         guard let activity = Activity<CaptureActivityAttributes>.activities.first else { return }
         Task {
-            let state = CaptureActivityAttributes.ContentState(placeName: placeName)
+            let state = CaptureActivityAttributes.ContentState(
+                placeName: name,
+                placeEmoji: emoji,
+                arrivalDate: arrivalDate,
+                priorVisitCount: priorVisitCount
+            )
             await activity.update(ActivityContent(state: state, staleDate: nil))
         }
     }
