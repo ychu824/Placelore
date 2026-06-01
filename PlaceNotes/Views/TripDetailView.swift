@@ -4,6 +4,10 @@ import MapKit
 struct TripDetailView: View {
     let trip: Trip
 
+    @State private var selectedPlace: Place?
+    @State private var visitForAlternatives: Visit?
+    @State private var refreshID = UUID()
+
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE, MMM d"
@@ -67,10 +71,12 @@ struct TripDetailView: View {
                                     guard nextIdx < day.visits.count else { return nil }
                                     return day.visits[nextIdx].arrivalDate
                                 }()
-                                NavigationLink {
-                                    PlaceDetailView(place: place)
+                                Button {
+                                    selectedPlace = place
                                 } label: {
-                                    LogbookVisitRow(visit: visit, place: place, nextSameDayArrival: nextSameDay)
+                                    LogbookVisitRow(visit: visit, place: place, nextSameDayArrival: nextSameDay) {
+                                        visitForAlternatives = visit
+                                    }
                                 }
                                 .buttonStyle(.plain)
                                 Divider()
@@ -82,7 +88,16 @@ struct TripDetailView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
+        .id(refreshID)
         .navigationTitle(trip.title)
         .navigationBarTitleDisplayMode(.large)
+        .navigationDestination(item: $selectedPlace) { place in
+            PlaceDetailView(place: place)
+        }
+        .sheet(item: $visitForAlternatives) { visit in
+            AlternativePlacePicker(visit: visit) {
+                refreshID = UUID()
+            }
+        }
     }
 }
