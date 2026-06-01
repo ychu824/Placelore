@@ -6,6 +6,7 @@ struct TripDetailView: View {
 
     @State private var selectedPlace: Place?
     @State private var visitForAlternatives: Visit?
+    @State private var trajectoryDay: Date?
     @State private var refreshID = UUID()
 
     private static let dayFormatter: DateFormatter = {
@@ -60,9 +61,21 @@ struct TripDetailView: View {
 
                 ForEach(visitsByDay, id: \.date) { day in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(Self.dayFormatter.string(from: day.date))
-                            .font(.headline)
-                            .padding(.top, 8)
+                        HStack {
+                            Text(Self.dayFormatter.string(from: day.date))
+                                .font(.headline)
+                            Spacer()
+                            Button {
+                                trajectoryDay = day.date
+                            } label: {
+                                Label("Map", systemImage: "map")
+                                    .font(.subheadline)
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Color.accentColor)
+                        }
+                        .padding(.top, 8)
 
                         ForEach(Array(day.visits.enumerated()), id: \.element.id) { idx, visit in
                             if let place = visit.place {
@@ -93,6 +106,9 @@ struct TripDetailView: View {
         .navigationBarTitleDisplayMode(.large)
         .navigationDestination(item: $selectedPlace) { place in
             PlaceDetailView(place: place)
+        }
+        .navigationDestination(item: $trajectoryDay) { day in
+            DayTrajectoryView(day: day)
         }
         .sheet(item: $visitForAlternatives) { visit in
             AlternativePlacePicker(visit: visit) {
