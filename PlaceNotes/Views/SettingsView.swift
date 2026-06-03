@@ -52,6 +52,7 @@ struct SettingsView: View {
     @Query private var places: [Place]
     @Query private var visits: [Visit]
     @Query private var customCategories: [CustomCategory]
+    @Query private var feedbackRecords: [PredictionFeedback]
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var trackingViewModel: TrackingViewModel
 
@@ -65,11 +66,8 @@ struct SettingsView: View {
     @State private var exportData: Data = Data()
     @State private var showExporter = false
     #if DEBUG
-    @State private var feedbackCount: Int = 0
-    @State private var feedbackAccurateCount: Int = 0
     @State private var feedbackExportData: Data = Data()
     @State private var showFeedbackExporter = false
-    @State private var feedbackUploadStatus: String = "Not uploaded"
     #endif
 
     private var appVersion: String {
@@ -159,7 +157,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Data Storage")
                 } footer: {
-                    Text("All data is stored on-device only.")
+                    Text("Places and visits are stored on-device. Prediction feedback may be uploaded in batches to improve place matching.")
                 }
 
                 Section {
@@ -193,23 +191,18 @@ struct SettingsView: View {
 
                 #if DEBUG
                 Section {
-                    LabeledContent("Feedback Collected", value: "\(feedbackCount)")
+                    LabeledContent("Feedback Collected", value: "\(feedbackRecords.count)")
                     LabeledContent("Predicted Correctly", value: feedbackPrecisionText)
-                    LabeledContent("Azure Upload", value: feedbackUploadStatus)
-                    Button("Upload Feedback to Azure") {
-                        uploadFeedbackToAzure()
-                    }
-                    .disabled(feedbackCount == 0)
+                    LabeledContent("Pending Upload", value: "\(pendingFeedbackUploadCount)")
                     Button("Export Feedback CSV") {
                         exportFeedback()
                     }
-                    .disabled(feedbackCount == 0)
+                    .disabled(feedbackRecords.isEmpty)
                 } header: {
                     Text("Prediction Feedback")
                 } footer: {
-                    Text("Your “correct / wrong” verdicts on recorded places are logged here. Export the labeled CSV to analyze prediction quality offline or train a model.")
+                    Text("Your “correct / wrong” verdicts on recorded places are logged here. Uploads happen automatically in batches; CSV export is for local debugging.")
                 }
-                .onAppear { refreshFeedbackStats() }
                 #endif
 
                 Section {
@@ -222,11 +215,7 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
-                    #if DEBUG
-                    .disabled(places.isEmpty && visits.isEmpty && feedbackCount == 0)
-                    #else
-                    .disabled(places.isEmpty && visits.isEmpty)
-                    #endif
+                    .disabled(places.isEmpty && visits.isEmpty && feedbackRecords.isEmpty)
                 }
 
                 Section("About") {
@@ -248,7 +237,6 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         DebugSeed.clearAllData(in: modelContext)
                         refreshRawSampleCount()
-                        refreshFeedbackStats()
                         refreshStorageSize()
                     } label: {
                         Text("Clear All Data (Debug)")
@@ -309,19 +297,15 @@ struct SettingsView: View {
     }
 
     #if DEBUG
-    private func refreshFeedbackStats() {
-        feedbackCount = (try? modelContext.fetchCount(FetchDescriptor<PredictionFeedback>())) ?? 0
-        let accurateRaw = PredictionVerdict.accurate.rawValue
-        let descriptor = FetchDescriptor<PredictionFeedback>(
-            predicate: #Predicate { $0.verdictRaw == accurateRaw }
-        )
-        feedbackAccurateCount = (try? modelContext.fetchCount(descriptor)) ?? 0
+    private var feedbackPrecisionText: String {
+        guard !feedbackRecords.isEmpty else { return "—" }
+        let accurateCount = feedbackRecords.filter { $0.verdict == .accurate }.count
+        let pct = Int((Double(accurateCount) / Double(feedbackRecords.count) * 100).rounded())
+        return "\(pct)% (\(accurateCount)/\(feedbackRecords.count))"
     }
 
-    private var feedbackPrecisionText: String {
-        guard feedbackCount > 0 else { return "—" }
-        let pct = Int((Double(feedbackAccurateCount) / Double(feedbackCount) * 100).rounded())
-        return "\(pct)% (\(feedbackAccurateCount)/\(feedbackCount))"
+    private var pendingFeedbackUploadCount: Int {
+        feedbackRecords.filter { $0.uploadedAt == nil }.count
     }
 
     private func exportFeedback() {
@@ -329,24 +313,6 @@ struct SettingsView: View {
         let records = (try? modelContext.fetch(descriptor)) ?? []
         feedbackExportData = PredictionFeedbackExporter.exportCSV(from: records)
         showFeedbackExporter = true
-    }
-
-    private func uploadFeedbackToAzure() {
-        let descriptor = FetchDescriptor<PredictionFeedback>(sortBy: [SortDescriptor(\.createdAt)])
-        let records = (try? modelContext.fetch(descriptor)) ?? []
-        let payloads = records.map { PredictionFeedbackUploadPayload(record: $0) }
-        guard !payloads.isEmpty else {
-            feedbackUploadStatus = "No feedback"
-            return
-        }
-
-        feedbackUploadStatus = "Uploading…"
-        Task {
-            let summary = await PredictionFeedbackUploader.upload(payloads)
-            await MainActor.run {
-                feedbackUploadStatus = summary.displayText
-            }
-        }
     }
     #endif
 
@@ -390,17 +356,11 @@ struct SettingsView: View {
         for category in customCategories {
             modelContext.delete(category)
         }
-        #if DEBUG
-        let feedback = (try? modelContext.fetch(FetchDescriptor<PredictionFeedback>())) ?? []
-        for record in feedback {
+        for record in feedbackRecords {
             modelContext.delete(record)
         }
-        #endif
         try? modelContext.save()
         PhotoStorage.deleteAll()
-        #if DEBUG
-        refreshFeedbackStats()
-        #endif
     }
 
     private func refreshStorageSize() {

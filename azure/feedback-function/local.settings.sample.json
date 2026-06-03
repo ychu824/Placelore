@@ -5,7 +5,7 @@
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "FEEDBACK_STORAGE_ACCOUNT": "stplacelorefbdev909",
     "FEEDBACK_FILE_SYSTEM": "feedback",
-    "FEEDBACK_DIRECTORY": "prediction-feedback/debug",
+    "FEEDBACK_DIRECTORY": "prediction-feedback",
     "FEEDBACK_API_KEY": ""
   }
 }

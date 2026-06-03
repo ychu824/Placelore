@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import SwiftData
 
@@ -25,6 +24,10 @@ enum PredictionVerdict: String, Codable, CaseIterable {
 final class PredictionFeedback {
     var id: UUID
     var createdAt: Date
+    var uploadedAt: Date?
+    var uploadAttemptCount: Int
+    var lastUploadAttemptAt: Date?
+    var lastUploadError: String?
 
     /// The visit this feedback is about. Stored as the visit's UUID rather than
     /// a relationship so a record survives independently for export.
@@ -74,6 +77,10 @@ final class PredictionFeedback {
     ) {
         self.id = UUID()
         self.createdAt = createdAt
+        self.uploadedAt = nil
+        self.uploadAttemptCount = 0
+        self.lastUploadAttemptAt = nil
+        self.lastUploadError = nil
         self.visitID = visitID
         self.arrivalDate = arrivalDate
         self.predictedPlaceName = predictedPlaceName
@@ -89,4 +96,3 @@ final class PredictionFeedback {
         self.correctionSource = correctionSource
     }
 }
-#endif

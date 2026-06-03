@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import os
 
@@ -28,7 +27,7 @@ struct PredictionFeedbackUploadPayload: Codable, Equatable, Sendable {
         self.schemaVersion = 1
         self.appVersion = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
         self.appBuild = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-        self.buildConfiguration = "debug"
+        self.buildConfiguration = Self.currentBuildConfiguration
         self.eventID = record.id
         self.createdAt = Self.iso8601String(from: record.createdAt)
         self.visitID = record.visitID
@@ -51,6 +50,14 @@ struct PredictionFeedbackUploadPayload: Codable, Equatable, Sendable {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
+    }
+
+    private static var currentBuildConfiguration: String {
+        #if DEBUG
+        return "debug"
+        #else
+        return "release"
+        #endif
     }
 }
 
@@ -98,6 +105,14 @@ enum PredictionFeedbackUploader {
         endpoint: URL = Self.endpoint,
         session: PredictionFeedbackHTTPSession = URLSession.shared
     ) async -> PredictionFeedbackUploadResult {
+        await uploadJSON(payload, endpoint: endpoint, session: session)
+    }
+
+    private static func uploadJSON<Payload: Encodable>(
+        _ payload: Payload,
+        endpoint: URL,
+        session: PredictionFeedbackHTTPSession
+    ) async -> PredictionFeedbackUploadResult {
         do {
             var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
             request.httpMethod = "POST"
@@ -117,7 +132,7 @@ enum PredictionFeedbackUploader {
                 return .serverRejected(statusCode: httpResponse.statusCode, body: body)
             }
 
-            logger.debug("Prediction feedback uploaded: \(payload.eventID.uuidString)")
+            logger.debug("Prediction feedback uploaded")
             return .success
         } catch let error as URLError {
             if error.isNetworkUnavailable {
@@ -137,18 +152,18 @@ enum PredictionFeedbackUploader {
         endpoint: URL = Self.endpoint,
         session: PredictionFeedbackHTTPSession = URLSession.shared
     ) async -> PredictionFeedbackUploadSummary {
-        var summary = PredictionFeedbackUploadSummary(succeeded: 0, failed: 0, networkUnavailable: 0)
-        for payload in payloads {
-            switch await upload(payload, endpoint: endpoint, session: session) {
-            case .success:
-                summary.succeeded += 1
-            case .networkUnavailable:
-                summary.networkUnavailable += 1
-            case .serverRejected, .failed:
-                summary.failed += 1
-            }
+        guard !payloads.isEmpty else {
+            return PredictionFeedbackUploadSummary(succeeded: 0, failed: 0, networkUnavailable: 0)
         }
-        return summary
+
+        switch await uploadJSON(payloads, endpoint: endpoint, session: session) {
+        case .success:
+            return PredictionFeedbackUploadSummary(succeeded: payloads.count, failed: 0, networkUnavailable: 0)
+        case .networkUnavailable:
+            return PredictionFeedbackUploadSummary(succeeded: 0, failed: 0, networkUnavailable: payloads.count)
+        case .serverRejected, .failed:
+            return PredictionFeedbackUploadSummary(succeeded: 0, failed: payloads.count, networkUnavailable: 0)
+        }
     }
 }
 
@@ -167,4 +182,3 @@ private extension URLError {
         }
     }
 }
-#endif

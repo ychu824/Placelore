@@ -4,11 +4,9 @@ struct LogbookVisitRow: View {
     let visit: Visit
     let place: Place
     let nextSameDayArrival: Date?
-    #if DEBUG
     var feedbackVerdict: PredictionVerdict? = nil
     var onMarkAccurate: (() -> Void)?
     var onOpenFeedback: (() -> Void)?
-    #endif
 
     private var dateString: String {
         let formatter = DateFormatter()
@@ -80,15 +78,12 @@ struct LogbookVisitRow: View {
                 }
             }
 
-            #if DEBUG
             feedbackBar
                 .padding(.leading, 40)
-            #endif
         }
         .padding(.vertical, 2)
     }
 
-    #if DEBUG
     @ViewBuilder
     private var feedbackBar: some View {
         if onOpenFeedback == nil {
@@ -122,9 +117,7 @@ struct LogbookVisitRow: View {
             }
         }
     }
-    #endif
 
-    #if DEBUG
     @ViewBuilder
     private func verdictLabel(_ verdict: PredictionVerdict) -> some View {
         switch verdict {
@@ -142,7 +135,6 @@ struct LogbookVisitRow: View {
                 .foregroundStyle(.orange)
         }
     }
-    #endif
 }
 
 #if DEBUG

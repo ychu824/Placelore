@@ -86,4 +86,28 @@ final class PredictionFeedbackUploaderTests: XCTestCase {
         XCTAssertEqual(summary.networkUnavailable, 2)
         XCTAssertEqual(summary.displayText, "No internet: 2 pending")
     }
+
+    func testBatchUploadPostsJSONArrayOnce() async throws {
+        let endpoint = URL(string: "https://example.test/api/feedback")!
+        let response = HTTPURLResponse(url: endpoint, statusCode: 202, httpVersion: nil, headerFields: nil)!
+        let session = StubHTTPSession(result: .success((Data(), response)))
+
+        let summary = await PredictionFeedbackUploader.upload(
+            [makePayload(), makePayload(verdict: .wrong)],
+            endpoint: endpoint,
+            session: session
+        )
+
+        XCTAssertEqual(summary.succeeded, 2)
+        XCTAssertEqual(summary.failed, 0)
+        XCTAssertEqual(summary.networkUnavailable, 0)
+
+        let request = try XCTUnwrap(session.receivedRequest)
+        let body = try XCTUnwrap(request.httpBody)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [[String: Any]])
+        XCTAssertEqual(json.count, 2)
+        XCTAssertEqual(json.first?["buildConfiguration"] as? String, "debug")
+        XCTAssertEqual(json.first?["verdict"] as? String, "accurate")
+        XCTAssertEqual(json.last?["verdict"] as? String, "wrong")
+    }
 }

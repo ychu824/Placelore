@@ -1,14 +1,14 @@
 # PlaceLore Feedback Function
 
-Debug-only ingestion endpoint for place-prediction feedback from the iOS app.
+Ingestion endpoint for place-prediction feedback from the iOS app.
 
 ## Endpoint
 
 `POST /api/feedback`
 
-The function validates the JSON payload sent by `PredictionFeedbackUploader` and writes one JSON document per feedback event to ADLS Gen2:
+The function validates the JSON payload sent by `PredictionFeedbackUploader`. The request body may be a single feedback object or an array of feedback objects. It writes one JSON document per feedback event to ADLS Gen2:
 
-`feedback/prediction-feedback/debug/YYYY/MM/DD/<eventID>.json`
+`feedback/prediction-feedback/<debug|release>/YYYY/MM/DD/<eventID>.json`
 
 ## App Settings
 
@@ -35,7 +35,7 @@ az functionapp config appsettings set \
   --settings \
     FEEDBACK_STORAGE_ACCOUNT=stplacelorefbdev909 \
     FEEDBACK_FILE_SYSTEM=feedback \
-    FEEDBACK_DIRECTORY=prediction-feedback/debug
+    FEEDBACK_DIRECTORY=prediction-feedback
 
 az functionapp deployment source config-zip \
   -g rg-placelore-feedback-dev \
