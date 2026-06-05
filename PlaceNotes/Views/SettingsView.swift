@@ -52,6 +52,7 @@ struct SettingsView: View {
     @Query private var places: [Place]
     @Query private var visits: [Visit]
     @Query private var customCategories: [CustomCategory]
+    @Query private var feedbackRecords: [PredictionFeedback]
     @EnvironmentObject var settings: AppSettings
     @EnvironmentObject var trackingViewModel: TrackingViewModel
 
@@ -64,6 +65,10 @@ struct SettingsView: View {
     @State private var retentionInputText = ""
     @State private var exportData: Data = Data()
     @State private var showExporter = false
+    #if DEBUG
+    @State private var feedbackExportData: Data = Data()
+    @State private var showFeedbackExporter = false
+    #endif
 
     private var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -152,7 +157,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Data Storage")
                 } footer: {
-                    Text("All data is stored on-device only.")
+                    Text("Places and visits are stored on-device. Prediction feedback may be uploaded in batches to improve place matching.")
                 }
 
                 Section {
@@ -184,6 +189,22 @@ struct SettingsView: View {
                 }
                 .onAppear { refreshRawSampleCount() }
 
+                #if DEBUG
+                Section {
+                    LabeledContent("Feedback Collected", value: "\(feedbackRecords.count)")
+                    LabeledContent("Predicted Correctly", value: feedbackPrecisionText)
+                    LabeledContent("Pending Upload", value: "\(pendingFeedbackUploadCount)")
+                    Button("Export Feedback CSV") {
+                        exportFeedback()
+                    }
+                    .disabled(feedbackRecords.isEmpty)
+                } header: {
+                    Text("Prediction Feedback")
+                } footer: {
+                    Text("Your “correct / wrong” verdicts on recorded places are logged here. Uploads happen automatically in batches; CSV export is for local debugging.")
+                }
+                #endif
+
                 Section {
                     Button(role: .destructive) {
                         showClearDataConfirmation = true
@@ -194,7 +215,7 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
-                    .disabled(places.isEmpty && visits.isEmpty)
+                    .disabled(places.isEmpty && visits.isEmpty && feedbackRecords.isEmpty)
                 }
 
                 Section("About") {
@@ -264,8 +285,36 @@ struct SettingsView: View {
                 contentType: .commaSeparatedText,
                 defaultFilename: "location_samples_\(formattedDate())"
             ) { _ in }
+            #if DEBUG
+            .fileExporter(
+                isPresented: $showFeedbackExporter,
+                document: CSVFile(data: feedbackExportData),
+                contentType: .commaSeparatedText,
+                defaultFilename: "prediction_feedback_\(formattedDate())"
+            ) { _ in }
+            #endif
         }
     }
+
+    #if DEBUG
+    private var feedbackPrecisionText: String {
+        guard !feedbackRecords.isEmpty else { return "—" }
+        let accurateCount = feedbackRecords.filter { $0.verdict == .accurate }.count
+        let pct = Int((Double(accurateCount) / Double(feedbackRecords.count) * 100).rounded())
+        return "\(pct)% (\(accurateCount)/\(feedbackRecords.count))"
+    }
+
+    private var pendingFeedbackUploadCount: Int {
+        feedbackRecords.filter { $0.uploadedAt == nil }.count
+    }
+
+    private func exportFeedback() {
+        let descriptor = FetchDescriptor<PredictionFeedback>(sortBy: [SortDescriptor(\.createdAt)])
+        let records = (try? modelContext.fetch(descriptor)) ?? []
+        feedbackExportData = PredictionFeedbackExporter.exportCSV(from: records)
+        showFeedbackExporter = true
+    }
+    #endif
 
     private func refreshRawSampleCount() {
         rawSampleCount = (try? modelContext.fetchCount(FetchDescriptor<RawLocationSample>())) ?? 0
@@ -306,6 +355,9 @@ struct SettingsView: View {
         }
         for category in customCategories {
             modelContext.delete(category)
+        }
+        for record in feedbackRecords {
+            modelContext.delete(record)
         }
         try? modelContext.save()
         PhotoStorage.deleteAll()

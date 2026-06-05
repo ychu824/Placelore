@@ -4,7 +4,9 @@ struct LogbookVisitRow: View {
     let visit: Visit
     let place: Place
     let nextSameDayArrival: Date?
-    var onPickAlternative: (() -> Void)?
+    var feedbackVerdict: PredictionVerdict? = nil
+    var onMarkAccurate: (() -> Void)?
+    var onOpenFeedback: (() -> Void)?
 
     private var dateString: String {
         let formatter = DateFormatter()
@@ -76,25 +78,62 @@ struct LogbookVisitRow: View {
                 }
             }
 
-            if !visit.alternativePlaces.isEmpty {
-                Button {
-                    onPickAlternative?()
-                } label: {
-                    if visit.placeConfirmed {
-                        Label("Place confirmed", systemImage: "checkmark.circle")
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    } else {
-                        Label("Not the right place?", systemImage: "arrow.triangle.swap")
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                    }
-                }
-                .buttonStyle(.plain)
+            feedbackBar
                 .padding(.leading, 40)
-            }
         }
         .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private var feedbackBar: some View {
+        if onOpenFeedback == nil {
+            EmptyView()
+        } else if let verdict = feedbackVerdict {
+            Button {
+                onOpenFeedback?()
+            } label: {
+                verdictLabel(verdict)
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 16) {
+                Button {
+                    onMarkAccurate?()
+                } label: {
+                    Label("Correct", systemImage: "hand.thumbsup")
+                        .font(.caption2)
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    onOpenFeedback?()
+                } label: {
+                    Label("Wrong", systemImage: "hand.thumbsdown")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func verdictLabel(_ verdict: PredictionVerdict) -> some View {
+        switch verdict {
+        case .accurate:
+            Label("Marked correct", systemImage: "checkmark.circle.fill")
+                .font(.caption2)
+                .foregroundStyle(.green)
+        case .corrected:
+            Label("Corrected", systemImage: "arrow.triangle.swap")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        case .wrong:
+            Label("Marked wrong", systemImage: "exclamationmark.triangle")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+        }
     }
 }
 

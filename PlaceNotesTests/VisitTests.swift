@@ -13,11 +13,14 @@ final class VisitTests: XCTestCase {
     }
 
     func testDurationWithoutDepartureUsesNow() {
-        let arrival = Date().addingTimeInterval(-30 * 60) // 30 minutes ago
+        let now = Date()
+        let startOfToday = Calendar.current.startOfDay(for: now)
+        let preferredArrival = now.addingTimeInterval(-30 * 60)
+        let arrival = preferredArrival < startOfToday ? startOfToday : preferredArrival
         let visit = Visit(arrivalDate: arrival, departureDate: nil)
-        // Should be approximately 30 minutes (allow 1 min tolerance for test execution)
-        XCTAssertGreaterThanOrEqual(visit.durationMinutes, 29)
-        XCTAssertLessThanOrEqual(visit.durationMinutes, 31)
+        let expectedMinutes = Int(Date().timeIntervalSince(arrival) / 60)
+        XCTAssertGreaterThanOrEqual(visit.durationMinutes, max(0, expectedMinutes - 1))
+        XCTAssertLessThanOrEqual(visit.durationMinutes, expectedMinutes + 1)
     }
 
     func testDurationNeverNegative() {
@@ -175,11 +178,15 @@ final class VisitTests: XCTestCase {
     }
 
     func testEffectiveDurationTodayUsesNowWhenNoCap() {
-        let arrival = Date().addingTimeInterval(-15 * 60)
+        let now = Date()
+        let startOfToday = Calendar.current.startOfDay(for: now)
+        let preferredArrival = now.addingTimeInterval(-15 * 60)
+        let arrival = preferredArrival < startOfToday ? startOfToday : preferredArrival
         let visit = Visit(arrivalDate: arrival, departureDate: nil)
         let mins = visit.effectiveDurationMinutes(cappedAt: nil)
-        XCTAssertGreaterThanOrEqual(mins, 14)
-        XCTAssertLessThanOrEqual(mins, 16)
+        let expectedMinutes = Int(Date().timeIntervalSince(arrival) / 60)
+        XCTAssertGreaterThanOrEqual(mins, max(0, expectedMinutes - 1))
+        XCTAssertLessThanOrEqual(mins, expectedMinutes + 1)
     }
 
     // MARK: - Helpers

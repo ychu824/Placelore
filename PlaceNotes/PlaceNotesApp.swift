@@ -11,6 +11,7 @@ struct PlaceNotesApp: App {
     let trackingManager: TrackingManager
     let modelContainer: ModelContainer
     let liveActivityManager: LiveActivityManager
+    let feedbackUploadScheduler: PredictionFeedbackUploadScheduler
 
     init() {
         // Use separate stores so debug mock data never leaks into release
@@ -30,7 +31,7 @@ struct PlaceNotesApp: App {
         let makeContainer = {
             let config = ModelConfiguration(url: storeURL)
             return try ModelContainer(
-                for: Schema(versionedSchema: PlaceNotesSchemaV1.self),
+                for: Schema(versionedSchema: PlaceNotesSchemaV2.self),
                 migrationPlan: PlaceNotesMigrationPlan.self,
                 configurations: config
             )
@@ -78,6 +79,8 @@ struct PlaceNotesApp: App {
         liveActivityManager.observe(trackingManager)
         self.liveActivityManager = liveActivityManager
 
+        self.feedbackUploadScheduler = PredictionFeedbackUploadScheduler(context: container.mainContext)
+
         locationManager.onVisitRecorded = { visit in
             if let place = visit.place {
                 NotificationManager.shared.checkMilestone(for: place)
@@ -102,10 +105,16 @@ struct PlaceNotesApp: App {
                 .onAppear {
                     NotificationManager.shared.requestAuthorization()
                     Self.removeOldSharedStore()
+                    feedbackUploadScheduler.start()
 
                     #if DEBUG
                     MockLocationProvider.seedIfNeeded(context: modelContainer.mainContext)
                     #endif
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                    Task { @MainActor in
+                        await feedbackUploadScheduler.uploadPending()
+                    }
                 }
         }
         .modelContainer(modelContainer)
