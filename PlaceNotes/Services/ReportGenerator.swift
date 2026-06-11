@@ -2,10 +2,14 @@ import Foundation
 import SwiftData
 
 struct PlaceRanking: Identifiable {
-    let id = UUID()
     let place: Place
     let qualifiedStays: Int
     let totalMinutes: Int
+
+    /// Keyed to the place so SwiftUI identity survives ranking recomputation —
+    /// a fresh UUID per ranking would tear down and rebuild every map
+    /// annotation each time the list is regenerated.
+    var id: UUID { place.id }
 
     /// All recorded visits, regardless of duration or recency — the count the
     /// place detail card, header, and charts display.

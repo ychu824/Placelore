@@ -35,56 +35,40 @@ final class PlaceCategorizer {
 
     /// Looks up the nearest POI category for a coordinate.
     /// Returns a human-readable category string, or nil if no POI is found nearby.
+    ///
+    /// One `.includingAll` request, matched locally against `categoryMap` —
+    /// MKLocalSearch is OS-rate-limited, so issuing one request per known
+    /// category (25 sequential network calls) is not an option here.
     static func categorize(latitude: Double, longitude: Double) async -> (label: String, icon: String)? {
         let coordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-        let region = MKCoordinateRegion(
-            center: coordinate,
-            latitudinalMeters: 100,
-            longitudinalMeters: 100
-        )
+        let targetLocation = CLLocation(latitude: latitude, longitude: longitude)
+        let radius: CLLocationDistance = 100
 
-        for entry in categoryMap {
-            let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: 100)
-            request.pointOfInterestFilter = MKPointOfInterestFilter(including: [entry.category])
-
-            let search = MKLocalSearch(request: request)
-            do {
-                let response = try await search.start()
-                if let item = response.mapItems.first {
-                    let itemLocation = item.placemark.location ?? CLLocation(latitude: latitude, longitude: longitude)
-                    let targetLocation = CLLocation(latitude: latitude, longitude: longitude)
-                    if itemLocation.distance(from: targetLocation) < 100 {
-                        return (entry.label, entry.icon)
-                    }
-                }
-            } catch {
-                continue
-            }
-        }
-
-        // Fallback: try a general search to get the POI category from the map item
-        let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = ""
-        request.region = region
-
+        let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: radius)
+        request.pointOfInterestFilter = .includingAll
         let search = MKLocalSearch(request: request)
-        do {
-            let response = try await search.start()
-            if let item = response.mapItems.first,
-               let poiCategory = item.pointOfInterestCategory {
-                if let match = categoryMap.first(where: { $0.category == poiCategory }) {
-                    return (match.label, match.icon)
-                }
-                // Return the raw category name cleaned up
-                let raw = poiCategory.rawValue
-                    .replacingOccurrences(of: "MKPOICategory", with: "")
-                return (raw, "mappin")
-            }
-        } catch {
-            // ignore
-        }
 
-        return nil
+        guard let response = try? await search.start() else { return nil }
+
+        let nearest = response.mapItems
+            .compactMap { item -> (category: MKPointOfInterestCategory, distance: CLLocationDistance)? in
+                guard let category = item.pointOfInterestCategory,
+                      let location = item.placemark.location else { return nil }
+                let distance = location.distance(from: targetLocation)
+                guard distance < radius else { return nil }
+                return (category, distance)
+            }
+            .min { $0.distance < $1.distance }
+
+        guard let nearest else { return nil }
+
+        if let match = categoryMap.first(where: { $0.category == nearest.category }) {
+            return (match.label, match.icon)
+        }
+        // Return the raw category name cleaned up
+        let raw = nearest.category.rawValue
+            .replacingOccurrences(of: "MKPOICategory", with: "")
+        return (raw, "mappin")
     }
 
     /// Returns the SF Symbol for a category label.

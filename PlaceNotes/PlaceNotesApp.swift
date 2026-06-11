@@ -12,6 +12,8 @@ struct PlaceNotesApp: App {
     let modelContainer: ModelContainer
     let liveActivityManager: LiveActivityManager
     let feedbackUploadScheduler: PredictionFeedbackUploadScheduler
+    let trackingViewModel: TrackingViewModel
+    let quickCaptureViewModel: QuickCaptureViewModel
 
     init() {
         // Use separate stores so debug mock data never leaks into release
@@ -74,6 +76,16 @@ struct PlaceNotesApp: App {
         let trackingManager = TrackingManager(locationManager: locationManager, settings: settings)
         self.trackingManager = trackingManager
 
+        // Built once here — building them in `body` would hand out fresh
+        // instances (and reset in-flight capture state) every time a settings
+        // change re-evaluates the scene.
+        self.trackingViewModel = TrackingViewModel(trackingManager: trackingManager)
+        self.quickCaptureViewModel = QuickCaptureViewModel(
+            oneShot: LocationOneShot(),
+            context: container.mainContext,
+            locationManager: locationManager
+        )
+
         // Mirror tracking state into the Dynamic Island capture Live Activity.
         let liveActivityManager = LiveActivityManager()
         liveActivityManager.observe(trackingManager)
@@ -99,8 +111,8 @@ struct PlaceNotesApp: App {
             ContentView()
                 .environmentObject(settings)
                 .environmentObject(locationManager)
-                .environmentObject(makeTrackingViewModel())
-                .environmentObject(makeQuickCaptureViewModel())
+                .environmentObject(trackingViewModel)
+                .environmentObject(quickCaptureViewModel)
                 .preferredColorScheme(settings.appearanceMode.colorScheme)
                 .onAppear {
                     NotificationManager.shared.requestAuthorization()
@@ -148,19 +160,5 @@ struct PlaceNotesApp: App {
         }
 
         UserDefaults.standard.set(true, forKey: migrationKey)
-    }
-
-    @MainActor
-    private func makeQuickCaptureViewModel() -> QuickCaptureViewModel {
-        QuickCaptureViewModel(
-            oneShot: LocationOneShot(),
-            context: modelContainer.mainContext,
-            locationManager: locationManager
-        )
-    }
-
-    @MainActor
-    private func makeTrackingViewModel() -> TrackingViewModel {
-        TrackingViewModel(trackingManager: trackingManager)
     }
 }

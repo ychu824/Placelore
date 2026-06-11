@@ -10,10 +10,17 @@ struct HomeView: View {
     @Query(sort: \JournalEntry.date, order: .reverse)
     private var allEntries: [JournalEntry]
 
-    @State private var pullOffset: CGFloat = 0
-    @State private var isCommitting = false
-    @State private var hapticArmed = true
-    @State private var peakProgress: Double = 0
+    /// Pull-to-capture gesture tracking. Nothing here is rendered, so it lives
+    /// in a reference holder — keeping the per-frame scroll offset in
+    /// value-type @State would re-evaluate the entire body (and rebuild the
+    /// photo feed) on every scroll frame.
+    private final class PullTracker {
+        var offset: CGFloat = 0
+        var peakProgress: Double = 0
+        var hapticArmed = true
+        var isCommitting = false
+    }
+    @State private var pull = PullTracker()
 
     @State private var selectedPhotoItem: HomePhotoItem?
     @State private var pendingPlaceID: PersistentIdentifier?
@@ -26,9 +33,6 @@ struct HomeView: View {
     private static let scrollSpaceName = "home-scroll"
 
     private var items: [HomePhotoItem] { HomePhotoFeed.flatten(allEntries) }
-    private var progress: Double {
-        PullProgress.progress(distance: pullOffset, threshold: Self.pullThreshold)
-    }
     private var isTrackingActive: Bool {
         trackingViewModel.trackingManager.state.status == .active
     }
@@ -37,9 +41,6 @@ struct HomeView: View {
         NavigationStack {
             content
             .navigationBarHidden(true)
-            .onChange(of: progress) { oldValue, newValue in
-                handleProgressChange(old: oldValue, new: newValue)
-            }
             .sheet(isPresented: $showTrackingSheet) { trackingSheet }
             .alert("Camera access needed", isPresented: $showCameraPermissionAlert) {
                 Button("OK", role: .cancel) {}
@@ -118,7 +119,7 @@ struct HomeView: View {
             }
             .coordinateSpace(name: Self.scrollSpaceName)
             .onPreferenceChange(HomeScrollOffsetKey.self) { newOffset in
-                pullOffset = max(0, newOffset)
+                handleScrollOffset(max(0, newOffset))
             }
         }
     }
@@ -158,35 +159,43 @@ struct HomeView: View {
         }
     }
 
+    private func handleScrollOffset(_ offset: CGFloat) {
+        let old = PullProgress.progress(distance: pull.offset, threshold: Self.pullThreshold)
+        let new = PullProgress.progress(distance: offset, threshold: Self.pullThreshold)
+        pull.offset = offset
+        guard new != old else { return }
+        handleProgressChange(old: old, new: new)
+    }
+
     private func handleProgressChange(old: Double, new: Double) {
-        if PullProgress.didCrossThreshold(old: old, new: new), hapticArmed {
+        if PullProgress.didCrossThreshold(old: old, new: new), pull.hapticArmed {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            hapticArmed = false
+            pull.hapticArmed = false
         } else if new < 1.0 {
-            hapticArmed = true
+            pull.hapticArmed = true
         }
 
-        peakProgress = max(peakProgress, new)
+        pull.peakProgress = max(pull.peakProgress, new)
 
-        if !isCommitting,
-           peakProgress >= 1.0,
+        if !pull.isCommitting,
+           pull.peakProgress >= 1.0,
            new < old,
            new < 1.0 {
-            let peakAtRelease = peakProgress
-            peakProgress = 0
+            let peakAtRelease = pull.peakProgress
+            pull.peakProgress = 0
             if peakAtRelease >= 1.0 {
                 commit()
             }
         }
 
         if new == 0 {
-            peakProgress = 0
+            pull.peakProgress = 0
         }
     }
 
     private func commit() {
-        guard !isCommitting else { return }
-        isCommitting = true
+        guard !pull.isCommitting else { return }
+        pull.isCommitting = true
         if isTrackingActive {
             Task {
                 let granted = await CameraPickerView.requestCameraPermission()
@@ -196,11 +205,11 @@ struct HomeView: View {
                     } else {
                         showCameraPermissionAlert = true
                     }
-                    isCommitting = false
+                    pull.isCommitting = false
                 }
             }
         } else {
-            isCommitting = false
+            pull.isCommitting = false
             showTrackingOffAlert = true
         }
     }

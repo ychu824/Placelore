@@ -107,8 +107,8 @@ private struct FullScreenPhotoView: View {
             }
             .padding()
         }
-        .onAppear {
-            image = PhotoStorage.loadImage(filename: filename)
+        .task(id: filename) {
+            image = await PhotoStorage.loadImageDetached(filename: filename)
         }
     }
 }
@@ -134,8 +134,11 @@ struct PhotoThumbnailView: View {
                 }
             }
             .clipped()
-            .onAppear {
-                image = PhotoStorage.loadImage(filename: filename)
+            .task(id: filename) {
+                // Downsampled + cached decode off the main actor — a full-res
+                // synchronous `loadImage` per grid cell stalls scrolling and
+                // holds entire JPEGs in memory for thumbnail-sized views.
+                image = await PhotoStorage.loadThumbnailDetached(filename: filename, maxDimension: 600)
             }
     }
 }
@@ -172,6 +175,13 @@ enum PhotoStorage {
         let url = photosDirectory.appendingPathComponent(filename)
         guard let data = try? Data(contentsOf: url) else { return nil }
         return UIImage(data: data)
+    }
+
+    /// Async wrapper that runs the full-size decode off the main actor.
+    static func loadImageDetached(filename: String) async -> UIImage? {
+        await Task.detached(priority: .userInitiated) {
+            loadImage(filename: filename)
+        }.value
     }
 
     /// Decodes a downsampled UIImage from the saved JPEG without holding the

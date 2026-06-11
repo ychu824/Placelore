@@ -21,7 +21,11 @@ final class TrackingViewModel: ObservableObject {
             }
             .store(in: &cancellables)
 
-        startDisplayTimer()
+        updateStatusText(trackingManager.state)
+    }
+
+    deinit {
+        displayTimer?.invalidate()
     }
 
     func enable() {
@@ -42,31 +46,45 @@ final class TrackingViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private func startDisplayTimer() {
-        displayTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateStatusText(self?.trackingManager.state ?? .default)
+    /// The 1 Hz countdown only needs to run while paused; running it
+    /// permanently would publish view invalidations every second for the
+    /// app's whole lifetime.
+    private func setDisplayTimerRunning(_ running: Bool) {
+        if running {
+            guard displayTimer == nil else { return }
+            displayTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    self?.updateStatusText(self?.trackingManager.state ?? .default)
+                }
             }
+        } else {
+            displayTimer?.invalidate()
+            displayTimer = nil
         }
     }
 
     private func updateStatusText(_ state: TrackingState) {
+        let newStatus: String
+        let newRemaining: String?
         switch state.status {
         case .active:
-            statusText = String(localized: "Tracking Active")
-            pauseTimeRemainingText = nil
+            newStatus = String(localized: "Tracking Active")
+            newRemaining = nil
         case .disabled:
-            statusText = String(localized: "Tracking Disabled")
-            pauseTimeRemainingText = nil
+            newStatus = String(localized: "Tracking Disabled")
+            newRemaining = nil
         case .paused:
             if let remaining = state.pauseTimeRemaining, remaining > 0 {
-                statusText = String(localized: "Tracking Paused")
-                pauseTimeRemainingText = formatTimeRemaining(remaining)
+                newStatus = String(localized: "Tracking Paused")
+                newRemaining = formatTimeRemaining(remaining)
             } else {
-                statusText = String(localized: "Tracking Active")
-                pauseTimeRemainingText = nil
+                newStatus = String(localized: "Tracking Active")
+                newRemaining = nil
             }
         }
+        if statusText != newStatus { statusText = newStatus }
+        if pauseTimeRemainingText != newRemaining { pauseTimeRemainingText = newRemaining }
+        setDisplayTimerRunning(newRemaining != nil)
     }
 
     private func formatTimeRemaining(_ interval: TimeInterval) -> String {

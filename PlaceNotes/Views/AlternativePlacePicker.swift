@@ -12,6 +12,9 @@ struct AlternativePlacePicker: View {
     @State private var showConfirmation = false
 
     var body: some View {
+        // Decoded once per render — `visit.alternativePlaces` JSON-decodes on
+        // every access.
+        let alternatives = visit.alternativePlaces
         NavigationStack {
             List {
                 if let place = visit.place {
@@ -42,9 +45,9 @@ struct AlternativePlacePicker: View {
                     }
                 }
 
-                if !visit.alternativePlaces.isEmpty {
+                if !alternatives.isEmpty {
                     Section("Did you mean?") {
-                        ForEach(visit.alternativePlaces) { candidate in
+                        ForEach(alternatives) { candidate in
                             Button {
                                 pendingCandidate = candidate
                                 showConfirmation = true
@@ -80,7 +83,7 @@ struct AlternativePlacePicker: View {
                         markWrong()
                     } label: {
                         Label(
-                            visit.alternativePlaces.isEmpty ? "This is wrong" : "None of these — still wrong",
+                            alternatives.isEmpty ? "This is wrong" : "None of these — still wrong",
                             systemImage: "hand.thumbsdown"
                         )
                     }
@@ -138,8 +141,18 @@ struct AlternativePlacePicker: View {
         )
 
         let threshold = 0.0001
-        let descriptor = FetchDescriptor<Place>()
-        let allPlaces = (try? modelContext.fetch(descriptor)) ?? []
+        let candidateName = candidate.name
+        let minLat = candidate.latitude - threshold
+        let maxLat = candidate.latitude + threshold
+        let minLon = candidate.longitude - threshold
+        let maxLon = candidate.longitude + threshold
+        let descriptor = FetchDescriptor<Place>(
+            predicate: #Predicate<Place> {
+                $0.name == candidateName &&
+                $0.latitude >= minLat && $0.latitude <= maxLat &&
+                $0.longitude >= minLon && $0.longitude <= maxLon
+            }
+        )
 
         let previousPlace = visit.place
 
@@ -149,11 +162,7 @@ struct AlternativePlacePicker: View {
         }
 
         let newPlace: Place
-        if let existing = allPlaces.first(where: {
-            $0.name == candidate.name &&
-            abs($0.latitude - candidate.latitude) < threshold &&
-            abs($0.longitude - candidate.longitude) < threshold
-        }) {
+        if let existing = (try? modelContext.fetch(descriptor))?.first {
             newPlace = existing
         } else {
             newPlace = Place(
