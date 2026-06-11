@@ -37,7 +37,10 @@ struct DayTrajectoryView: View {
                 TrajectoryPolyline(segments: segments, colorMode: .time)
 
                 if showAllSamples {
-                    ForEach(segments.flatMap(\.points), id: \.timestamp) { point in
+                    // Indexed identity — timestamps can collide (CoreLocation
+                    // delivers duplicate-timestamp fixes), which would give
+                    // ForEach duplicate IDs.
+                    ForEach(Array(segments.flatMap(\.points).enumerated()), id: \.offset) { _, point in
                         Annotation(
                             "",
                             coordinate: point.coordinate

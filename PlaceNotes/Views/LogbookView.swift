@@ -15,7 +15,18 @@ struct LogbookView: View {
     @State private var refreshID = UUID()
     @State private var trajectoryDay: Date?
 
+    /// Re-runs the refresh when a visit is added anywhere — keying on
+    /// `places.count` alone misses new visits at already-known places.
+    private var visitRefreshKey: Int {
+        places.reduce(0) { $0 + $1.visits.count }
+    }
+
+    private var feedbackVerdictsByVisit: [UUID: PredictionVerdict] {
+        Dictionary(feedbackRecords.map { ($0.visitID, $0.verdict) }, uniquingKeysWith: { first, _ in first })
+    }
+
     var body: some View {
+        let verdicts = feedbackVerdictsByVisit
         NavigationStack {
             Group {
                 if viewModel.sections.isEmpty {
@@ -27,7 +38,7 @@ struct LogbookView: View {
                 } else {
                     List {
                         ForEach(viewModel.sections) { section in
-                            sectionView(section)
+                            sectionView(section, verdicts: verdicts)
                         }
                     }
                     .listStyle(.insetGrouped)
@@ -39,7 +50,7 @@ struct LogbookView: View {
                 }
             }
             .navigationTitle("Logbook")
-            .task(id: places.count) {
+            .task(id: visitRefreshKey) {
                 viewModel.refresh(places: places, settings: settings)
             }
             .onChange(of: settings.tripMinDistanceKm) { _, _ in
@@ -84,7 +95,7 @@ struct LogbookView: View {
     }
 
     @ViewBuilder
-    private func sectionView(_ section: LogbookSection) -> some View {
+    private func sectionView(_ section: LogbookSection, verdicts: [UUID: PredictionVerdict]) -> some View {
         switch section {
         case .trip(let trip):
             Section {
@@ -99,7 +110,7 @@ struct LogbookView: View {
         case .thisWeek(let visits):
             Section {
                 ForEach(Array(visits.enumerated()), id: \.element.id) { idx, visit in
-                    visitRow(visit: visit, all: visits, index: idx)
+                    visitRow(visit: visit, all: visits, index: idx, verdicts: verdicts)
                 }
             } header: {
                 Label("This week", systemImage: "calendar")
@@ -110,7 +121,7 @@ struct LogbookView: View {
         case .earlier(let year, let month, let visits):
             Section {
                 ForEach(Array(visits.enumerated()), id: \.element.id) { idx, visit in
-                    visitRow(visit: visit, all: visits, index: idx)
+                    visitRow(visit: visit, all: visits, index: idx, verdicts: verdicts)
                 }
             } header: {
                 Text(earlierHeader(year: year, month: month))
@@ -122,7 +133,7 @@ struct LogbookView: View {
     }
 
     @ViewBuilder
-    private func visitRow(visit: Visit, all: [Visit], index: Int) -> some View {
+    private func visitRow(visit: Visit, all: [Visit], index: Int, verdicts: [UUID: PredictionVerdict]) -> some View {
         if let place = visit.place {
             let nextSameDay: Date? = {
                 let nextIdx = index - 1
@@ -137,7 +148,7 @@ struct LogbookView: View {
                     visit: visit,
                     place: place,
                     nextSameDayArrival: nextSameDay,
-                    feedbackVerdict: feedbackRecords.first { $0.visitID == visit.id }?.verdict,
+                    feedbackVerdict: verdicts[visit.id],
                     onMarkAccurate: {
                         PredictionFeedbackRecorder.record(.accurate, for: visit, in: modelContext)
                         viewModel.refresh(places: places, settings: settings)

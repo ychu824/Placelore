@@ -23,8 +23,8 @@ private struct GeoDetails {
 
 enum PlaceResolver {
 
-    /// ~50 meters in degrees latitude/longitude. Used for nearest-existing-place matching.
-    private static let nearbyThresholdDegrees: Double = 0.0005
+    /// Radius for nearest-existing-place matching.
+    private static let nearbyThresholdMeters: Double = 50
 
     /// Network calls to CLGeocoder / MKLocalSearch are rate-limited by Apple and have no
     /// client-side timeout. On flaky networks they can stall for minutes — bound them.
@@ -48,17 +48,28 @@ enum PlaceResolver {
     /// Returns the nearest Place within ~50m of the given coordinate, if any exists.
     @MainActor
     static func nearestExisting(latitude: Double, longitude: Double, in context: ModelContext) -> Place? {
-        let minLat = latitude - nearbyThresholdDegrees
-        let maxLat = latitude + nearbyThresholdDegrees
-        let minLon = longitude - nearbyThresholdDegrees
-        let maxLon = longitude + nearbyThresholdDegrees
+        // Bounding box pre-filter for the fetch; the longitude span must widen
+        // with latitude or the effective radius shrinks toward the poles.
+        let latDelta = nearbyThresholdMeters / 111_320.0
+        let lonDelta = latDelta / max(cos(latitude * .pi / 180), 0.01)
+        let minLat = latitude - latDelta
+        let maxLat = latitude + latDelta
+        let minLon = longitude - lonDelta
+        let maxLon = longitude + lonDelta
         let descriptor = FetchDescriptor<Place>(
             predicate: #Predicate<Place> {
                 $0.latitude >= minLat && $0.latitude <= maxLat &&
                 $0.longitude >= minLon && $0.longitude <= maxLon
             }
         )
-        return (try? context.fetch(descriptor))?.first
+        guard let candidates = try? context.fetch(descriptor), !candidates.isEmpty else { return nil }
+
+        let target = CLLocation(latitude: latitude, longitude: longitude)
+        return candidates
+            .map { (place: $0, distance: CLLocation(latitude: $0.latitude, longitude: $0.longitude).distance(from: target)) }
+            .filter { $0.distance <= nearbyThresholdMeters }
+            .min { $0.distance < $1.distance }?
+            .place
     }
 
     /// Full resolve: nearest-existing → geocode + POI search → create + insert new Place.
@@ -73,7 +84,7 @@ enum PlaceResolver {
             logger.debug("Found existing place: \(existing.name)")
             return (existing, [])
         }
-        logger.info("No existing place within \(nearbyThresholdDegrees) degrees — resolving (addressOnly: \(addressOnly))")
+        logger.info("No existing place within \(Int(nearbyThresholdMeters))m — resolving (addressOnly: \(addressOnly))")
         let resolved = await resolve(latitude: latitude, longitude: longitude, addressOnly: addressOnly)
         let place = Place(
             name: resolved.name,

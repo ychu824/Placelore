@@ -26,9 +26,18 @@ struct SearchPlacesView: View {
 
     private var filteredPlaces: [Place] {
         let minStay = settings.minStayMinutes
+        // Qualified stats are computed once per place up front — calling
+        // qualifiedStayCount/totalQualifiedMinutes inside the sort comparator
+        // re-filters the whole visit array on every comparison.
         return places
-            .filter { $0.qualifiedStayCount(minMinutes: minStay) > 0 }
-            .filter { place in
+            .compactMap { place -> (place: Place, stays: Int, minutes: Int)? in
+                let qualified = place.qualifiedStays(minMinutes: minStay)
+                guard !qualified.isEmpty else { return nil }
+                let minutes = qualified.reduce(0) { $0 + $1.durationMinutes }
+                return (place, qualified.count, minutes)
+            }
+            .filter { entry in
+                let place = entry.place
                 if searchText.isEmpty { return true }
                 let query = searchText.lowercased()
                 return place.displayName.lowercased().contains(query)
@@ -38,19 +47,20 @@ struct SearchPlacesView: View {
                     || (place.city?.lowercased().contains(query) ?? false)
                     || (place.state?.lowercased().contains(query) ?? false)
             }
-            .filter { place in
-                if let cat = selectedCategory { return place.category == cat }
+            .filter { entry in
+                if let cat = selectedCategory { return entry.place.category == cat }
                 return true
             }
-            .filter { place in
-                if let city = selectedCity { return place.city == city }
+            .filter { entry in
+                if let city = selectedCity { return entry.place.city == city }
                 return true
             }
-            .filter { place in
-                if let state = selectedState { return place.state == state }
+            .filter { entry in
+                if let state = selectedState { return entry.place.state == state }
                 return true
             }
-            .sorted { ($0.qualifiedStayCount(minMinutes: minStay), $0.totalQualifiedMinutes(minMinutes: minStay)) > ($1.qualifiedStayCount(minMinutes: minStay), $1.totalQualifiedMinutes(minMinutes: minStay)) }
+            .sorted { ($0.stays, $0.minutes) > ($1.stays, $1.minutes) }
+            .map(\.place)
     }
 
     private var hasActiveFilters: Bool {

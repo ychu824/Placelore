@@ -46,8 +46,8 @@ struct HomePhotoViewer: View {
                 .padding(.bottom, 32)
             }
         }
-        .onAppear {
-            image = PhotoStorage.loadImage(filename: item.filename)
+        .task(id: item.filename) {
+            image = await PhotoStorage.loadImageDetached(filename: item.filename)
         }
     }
 }

@@ -18,39 +18,9 @@ struct CSVFile: FileDocument {
     }
 }
 
-private enum LocationExporter {
-    private static let iso8601: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f
-    }()
-
-    static func exportCSV(from samples: [RawLocationSample]) -> Data {
-        var lines = ["id,latitude,longitude,timestamp,horizontalAccuracy,speed,altitude,verticalAccuracy,course,filterStatus,motionActivity"]
-        for s in samples {
-            let row: [String] = [
-                s.id.uuidString,
-                "\(s.latitude)",
-                "\(s.longitude)",
-                iso8601.string(from: s.timestamp),
-                "\(s.horizontalAccuracy)",
-                "\(s.speed)",
-                s.altitude.map { "\($0)" } ?? "",
-                s.verticalAccuracy.map { "\($0)" } ?? "",
-                s.course.map { "\($0)" } ?? "",
-                s.filterStatus,
-                s.motionActivity ?? ""
-            ]
-            lines.append(row.joined(separator: ","))
-        }
-        return lines.joined(separator: "\n").data(using: .utf8) ?? Data()
-    }
-}
-
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var places: [Place]
-    @Query private var visits: [Visit]
     @Query private var customCategories: [CustomCategory]
     @Query private var feedbackRecords: [PredictionFeedback]
     @EnvironmentObject var settings: AppSettings
@@ -61,6 +31,9 @@ struct SettingsView: View {
     @State private var showClearDataConfirmation = false
     @State private var storageSizeText = "Calculating…"
     @State private var rawSampleCount: Int = 0
+    /// Counted via `fetchCount` instead of an `@Query` — Settings only needs
+    /// the number, not every Visit row materialized in memory.
+    @State private var visitCount: Int = 0
     @State private var showRetentionInput = false
     @State private var retentionInputText = ""
     @State private var exportData: Data = Data()
@@ -148,12 +121,11 @@ struct SettingsView: View {
 
                 Section {
                     LabeledContent("Places", value: "\(places.count)")
-                    LabeledContent("Visits", value: "\(visits.count)")
+                    LabeledContent("Visits", value: "\(visitCount)")
                     LabeledContent("Total Tracked Time", value: totalTrackedTimeText)
                     LabeledContent("Storage Used", value: storageSizeText)
-                        .onAppear { refreshStorageSize() }
-                        .onChange(of: places.count) { refreshStorageSize() }
-                        .onChange(of: visits.count) { refreshStorageSize() }
+                        .onAppear { refreshDataCounts() }
+                        .onChange(of: places.count) { refreshDataCounts() }
                 } header: {
                     Text("Data Storage")
                 } footer: {
@@ -215,7 +187,7 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
-                    .disabled(places.isEmpty && visits.isEmpty && feedbackRecords.isEmpty)
+                    .disabled(places.isEmpty && visitCount == 0 && feedbackRecords.isEmpty && rawSampleCount == 0)
                 }
 
                 Section("About") {
@@ -227,17 +199,17 @@ struct SettingsView: View {
                     Button("Seed Sample Trajectory") {
                         DebugSeed.seedSampleTrajectories(in: modelContext)
                         refreshRawSampleCount()
-                        refreshStorageSize()
+                        refreshDataCounts()
                     }
                     Button("Seed Open Visit") {
                         DebugSeed.seedOpenVisitNow(in: modelContext)
                         refreshRawSampleCount()
-                        refreshStorageSize()
+                        refreshDataCounts()
                     }
                     Button(role: .destructive) {
                         DebugSeed.clearAllData(in: modelContext)
                         refreshRawSampleCount()
-                        refreshStorageSize()
+                        refreshDataCounts()
                     } label: {
                         Text("Clear All Data (Debug)")
                     }
@@ -255,7 +227,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This will permanently delete all \(places.count) places and \(visits.count) visits. This cannot be undone.")
+                Text("This will permanently delete all \(places.count) places, \(visitCount) visits, and every raw location sample. This cannot be undone.")
             }
             .alert("Set Minimum Stay", isPresented: $showMinStayInput) {
                 TextField("Minutes", text: $minStayInputText)
@@ -320,11 +292,16 @@ struct SettingsView: View {
         rawSampleCount = (try? modelContext.fetchCount(FetchDescriptor<RawLocationSample>())) ?? 0
     }
 
+    private func refreshDataCounts() {
+        visitCount = (try? modelContext.fetchCount(FetchDescriptor<Visit>())) ?? 0
+        refreshStorageSize()
+    }
+
     private func exportRawSamples() {
-        let descriptor = FetchDescriptor<RawLocationSample>(sortBy: [SortDescriptor(\.timestamp)])
-        let samples = (try? modelContext.fetch(descriptor)) ?? []
-        exportData = LocationExporter.exportCSV(from: samples)
-        showExporter = true
+        Task {
+            exportData = await LocationExporter.exportCSV(from: modelContext)
+            showExporter = true
+        }
     }
 
     private func applyRetentionDays() {
@@ -347,7 +324,8 @@ struct SettingsView: View {
     }
 
     private func clearAllData() {
-        for visit in visits {
+        let allVisits = (try? modelContext.fetch(FetchDescriptor<Visit>())) ?? []
+        for visit in allVisits {
             modelContext.delete(visit)
         }
         for place in places {
@@ -359,8 +337,13 @@ struct SettingsView: View {
         for record in feedbackRecords {
             modelContext.delete(record)
         }
+        // Raw GPS samples are the most privacy-sensitive data in the store;
+        // "Delete All Data" must not leave the movement trace behind.
+        try? modelContext.delete(model: RawLocationSample.self)
         try? modelContext.save()
         PhotoStorage.deleteAll()
+        refreshRawSampleCount()
+        refreshDataCounts()
     }
 
     private func refreshStorageSize() {
@@ -381,10 +364,8 @@ struct SettingsView: View {
             return total + bytes
         }
 
-        let visitBytes = visits.reduce(0) { total, _ in
-            // UUID + arrivalDate + departureDate + foreign key
-            total + 16 + 8 + 8 + 16
-        }
+        // UUID + arrivalDate + departureDate + foreign key per Visit row
+        let visitBytes = visitCount * (16 + 8 + 8 + 16)
 
         let rawBytes = placeBytes + visitBytes
         // Account for SQLite overhead (indexes, page headers, alignment)

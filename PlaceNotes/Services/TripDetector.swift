@@ -146,8 +146,7 @@ enum TripDetector {
         })?.place
         let title: String = topPlace?.city ?? topPlace?.name ?? "Trip"
 
-        let idSeed = "\(first.arrivalDate.timeIntervalSince1970)-\(endDate.timeIntervalSince1970)"
-        let id = UUID(uuidString: stableUUID(from: idSeed)) ?? UUID()
+        let id = stableUUID(start: first.arrivalDate, end: endDate)
 
         return Trip(
             id: id,
@@ -164,16 +163,22 @@ enum TripDetector {
         )
     }
 
-    private static func stableUUID(from seed: String) -> String {
-        let hash = abs(seed.hashValue)
-        let bytes = withUnsafeBytes(of: hash) { Data($0) } + Data(repeating: 0, count: 16)
-        let prefix = bytes.prefix(16)
-        let hex = prefix.map { String(format: "%02x", $0) }.joined()
-        let g1 = hex.prefix(8)
-        let g2 = hex.dropFirst(8).prefix(4)
-        let g3 = hex.dropFirst(12).prefix(4)
-        let g4 = hex.dropFirst(16).prefix(4)
-        let g5 = hex.dropFirst(20).prefix(12)
-        return "\(g1)-\(g2)-\(g3)-\(g4)-\(g5)"
+    /// Builds the trip ID from the start/end timestamps' bit patterns.
+    /// `String.hashValue` is seeded per-process, so it must not be used here —
+    /// the same trip would get a different ID on every launch.
+    private static func stableUUID(start: Date, end: Date) -> UUID {
+        var bytes = [UInt8]()
+        bytes.reserveCapacity(16)
+        for value in [start.timeIntervalSince1970.bitPattern, end.timeIntervalSince1970.bitPattern] {
+            for shift in stride(from: 56, through: 0, by: -8) {
+                bytes.append(UInt8(truncatingIfNeeded: value >> UInt64(shift)))
+            }
+        }
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3],
+            bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11],
+            bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
     }
 }

@@ -93,6 +93,12 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     /// Distance (meters) the user must move before we consider them "left".
     private let dwellRadiusMeters: Double = 80
 
+    /// Minimum interval between orphan-open-visit sweeps. With a 5 m distance
+    /// filter, running the SwiftData fetch on every fix would query several
+    /// times a minute while moving for no benefit.
+    private let staleVisitCheckInterval: TimeInterval = 60
+    private var lastStaleVisitCheck: Date = .distantPast
+
     /// Distance (meters) from a place at which an open visit is force-closed
     /// even if the dwell-finalize path missed the departure. Wider than the
     /// dwell radius so transient GPS jumps don't prematurely end a stay.
@@ -333,7 +339,10 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         userLocation = location.coordinate
         lastFix = location
 
-        closeStaleOpenVisits(currentLocation: location, context: modelContext)
+        if Date().timeIntervalSince(lastStaleVisitCheck) >= staleVisitCheckInterval {
+            lastStaleVisitCheck = Date()
+            closeStaleOpenVisits(currentLocation: location, context: modelContext)
+        }
 
         // Step 1: Filter noisy / stale samples
         let isAccurate = location.horizontalAccuracy >= 0 && location.horizontalAccuracy <= maxAcceptableAccuracy
@@ -480,16 +489,18 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         ) ?? Date()
 
         Task { @MainActor in
-            let descriptor = FetchDescriptor<RawLocationSample>(
-                predicate: #Predicate { $0.timestamp < cutoff }
-            )
-            let stale = (try? context.fetch(descriptor)) ?? []
-            for sample in stale {
-                context.delete(sample)
-            }
-            if !stale.isEmpty {
-                try? context.save()
-                logger.info("Deleted \(stale.count) raw samples older than \(self.settings.rawLocationRetentionDays) days")
+            let predicate = #Predicate<RawLocationSample> { $0.timestamp < cutoff }
+            let staleCount = (try? context.fetchCount(FetchDescriptor(predicate: predicate))) ?? 0
+            guard staleCount > 0 else { return }
+            do {
+                // Batch delete — materializing potentially hundreds of
+                // thousands of stale rows just to delete them one by one
+                // would stall the main actor at launch.
+                try context.delete(model: RawLocationSample.self, where: predicate)
+                try context.save()
+                logger.info("Deleted \(staleCount) raw samples older than \(self.settings.rawLocationRetentionDays) days")
+            } catch {
+                logger.error("Failed to delete stale raw samples: \(error.localizedDescription)")
             }
         }
     }
