@@ -40,8 +40,13 @@ struct CaptureLiveActivity: Widget {
             } compactLeading: {
                 Text("📸")
             } compactTrailing: {
-                Text("Capture")
-                    .font(.caption2.weight(.semibold))
+                Label("Capture", systemImage: "camera.fill")
+                    .labelStyle(.iconOnly)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.green)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.green.opacity(0.2), in: Capsule())
             } minimal: {
                 Text("📸")
             }

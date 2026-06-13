@@ -121,6 +121,34 @@ struct HomeView: View {
                 pullOffset = max(0, newOffset)
             }
         }
+        .overlay(alignment: .bottomTrailing) { captureButton }
+    }
+
+    /// Always-visible fallback so a photo can be captured even when the Dynamic
+    /// Island / Live Activity capture affordance isn't present (tracking paused,
+    /// island collapsed, etc.). Mirrors the pull-to-capture gesture's behavior.
+    @ViewBuilder
+    private var captureButton: some View {
+        Button(action: requestCapture) {
+            Image(systemName: "camera.fill")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(.green.gradient, in: Circle())
+                .shadow(radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 20)
+        .padding(.bottom, 16)
+        .accessibilityLabel("Capture photo")
+    }
+
+    private func requestCapture() {
+        if isTrackingActive {
+            attemptCapture()
+        } else {
+            showTrackingOffAlert = true
+        }
     }
 
     @ViewBuilder
