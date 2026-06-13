@@ -1,13 +1,13 @@
 # Placelore Privacy Policy
 
-_Last updated: June 2, 2026_
+_Last updated: June 13, 2026_
 
 Placelore ("the app") is an iOS application that helps you keep a personal journal of the places you visit. This policy explains what data the app handles and how.
 
 ## Summary
 
-- Your places, visits, journal entries, photos, and raw location samples stay on your device.
-- The app may upload prediction-feedback records to help improve place matching.
+- Your places, visits, journal entries, photos, raw location samples, and place-prediction feedback stay on your device.
+- The app does not transmit any of your data off your device. (Cloud upload of place-prediction feedback is currently disabled.)
 - The app does not have user accounts or cloud sync.
 - The app does not use analytics or third-party tracking SDKs.
 - The app does not sell your data or share it for advertising.
@@ -34,9 +34,8 @@ Placelore accesses the following data **only on your device**:
 ### Place-prediction feedback
 
 - If you mark whether a detected place was correct or wrong, the app stores that feedback on your device.
-- The app may upload batched feedback records to the developer's Azure storage to improve place matching quality.
-- Uploaded feedback can include the predicted place name, category, confidence, timestamp, latitude, longitude, and your correct/wrong/corrected verdict.
-- Feedback uploads do not include your photos, journal notes, name, email address, or an app account identifier.
+- This feedback stays on your device. Cloud upload of feedback is currently disabled, so no feedback leaves your device.
+- If feedback upload is re-enabled in a future version, this policy will be updated first, and the App Store privacy details will be changed to declare it before that version ships.
 
 ## Data the app does not collect
 
@@ -46,7 +45,7 @@ Placelore accesses the following data **only on your device**:
 
 ## Data sharing
 
-Placelore transmits place-prediction feedback records to the developer's Azure backend for product improvement. Placelore does not sell your data, share it for advertising, or use third-party tracking SDKs.
+Placelore does not transmit your data off your device. It does not sell your data, share it for advertising, or use third-party tracking SDKs. (Map search and reverse geocoding are performed through Apple's MapKit and Core Location services to turn coordinates into place names; these are handled by Apple under its own privacy policy.)
 
 ## Data retention and deletion
 
