@@ -5,6 +5,7 @@ import CoreLocation
 struct AlternativePlacePicker: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var settings: AppSettings
     let visit: Visit
     var onPlaceChanged: (() -> Void)?
 
@@ -36,11 +37,13 @@ struct AlternativePlacePicker: View {
                             Spacer()
                         }
 
-                        Button {
-                            markAccurate()
-                        } label: {
-                            Label("This is correct", systemImage: "hand.thumbsup")
-                                .foregroundStyle(.green)
+                        if settings.predictionFeedbackEnabled {
+                            Button {
+                                markAccurate()
+                            } label: {
+                                Label("This is correct", systemImage: "hand.thumbsup")
+                                    .foregroundStyle(.green)
+                            }
                         }
                     }
                 }
@@ -78,20 +81,22 @@ struct AlternativePlacePicker: View {
                     }
                 }
 
-                Section {
-                    Button(role: .destructive) {
-                        markWrong()
-                    } label: {
-                        Label(
-                            alternatives.isEmpty ? "This is wrong" : "None of these — still wrong",
-                            systemImage: "hand.thumbsdown"
-                        )
+                if settings.predictionFeedbackEnabled {
+                    Section {
+                        Button(role: .destructive) {
+                            markWrong()
+                        } label: {
+                            Label(
+                                alternatives.isEmpty ? "This is wrong" : "None of these — still wrong",
+                                systemImage: "hand.thumbsdown"
+                            )
+                        }
+                    } footer: {
+                        Text("Your feedback is logged to measure how well place prediction is working.")
                     }
-                } footer: {
-                    Text("Your feedback is logged to measure how well place prediction is working.")
                 }
             }
-            .navigationTitle("How did we do?")
+            .navigationTitle(settings.predictionFeedbackEnabled ? "How did we do?" : "Change Place")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

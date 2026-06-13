@@ -117,13 +117,16 @@ struct PlaceNotesApp: App {
                 .onAppear {
                     NotificationManager.shared.requestAuthorization()
                     Self.removeOldSharedStore()
-                    feedbackUploadScheduler.start()
+                    if settings.predictionFeedbackEnabled {
+                        feedbackUploadScheduler.start()
+                    }
 
                     #if DEBUG
                     MockLocationProvider.seedIfNeeded(context: modelContainer.mainContext)
                     #endif
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                    guard settings.predictionFeedbackEnabled else { return }
                     Task { @MainActor in
                         await feedbackUploadScheduler.uploadPending()
                     }

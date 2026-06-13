@@ -129,7 +129,11 @@ struct SettingsView: View {
                 } header: {
                     Text("Data Storage")
                 } footer: {
-                    Text("Places and visits are stored on-device. Prediction feedback may be uploaded in batches to improve place matching.")
+                    if settings.predictionFeedbackEnabled {
+                        Text("Places and visits are stored on-device. Prediction feedback may be uploaded in batches to improve place matching.")
+                    } else {
+                        Text("Places and visits are stored on-device.")
+                    }
                 }
 
                 Section {
@@ -162,18 +166,20 @@ struct SettingsView: View {
                 .onAppear { refreshRawSampleCount() }
 
                 #if DEBUG
-                Section {
-                    LabeledContent("Feedback Collected", value: "\(feedbackRecords.count)")
-                    LabeledContent("Predicted Correctly", value: feedbackPrecisionText)
-                    LabeledContent("Pending Upload", value: "\(pendingFeedbackUploadCount)")
-                    Button("Export Feedback CSV") {
-                        exportFeedback()
+                if settings.predictionFeedbackEnabled {
+                    Section {
+                        LabeledContent("Feedback Collected", value: "\(feedbackRecords.count)")
+                        LabeledContent("Predicted Correctly", value: feedbackPrecisionText)
+                        LabeledContent("Pending Upload", value: "\(pendingFeedbackUploadCount)")
+                        Button("Export Feedback CSV") {
+                            exportFeedback()
+                        }
+                        .disabled(feedbackRecords.isEmpty)
+                    } header: {
+                        Text("Prediction Feedback")
+                    } footer: {
+                        Text("Your “correct / wrong” verdicts on recorded places are logged here. Uploads happen automatically in batches; CSV export is for local debugging.")
                     }
-                    .disabled(feedbackRecords.isEmpty)
-                } header: {
-                    Text("Prediction Feedback")
-                } footer: {
-                    Text("Your “correct / wrong” verdicts on recorded places are logged here. Uploads happen automatically in batches; CSV export is for local debugging.")
                 }
                 #endif
 
@@ -195,6 +201,12 @@ struct SettingsView: View {
                 }
 
                 #if DEBUG
+                Section {
+                    Toggle("Prediction Feedback Enabled", isOn: $settings.predictionFeedbackEnabled)
+                } footer: {
+                    Text("Master switch for the place-prediction feedback feature (verdict UI, local recording, and Azure uploads). Off by default while the pipeline is paused.")
+                }
+
                 Section {
                     Button("Seed Sample Trajectory") {
                         DebugSeed.seedSampleTrajectories(in: modelContext)

@@ -149,14 +149,14 @@ struct LogbookView: View {
                     place: place,
                     nextSameDayArrival: nextSameDay,
                     feedbackVerdict: verdicts[visit.id],
-                    onMarkAccurate: {
+                    onMarkAccurate: settings.predictionFeedbackEnabled ? {
                         PredictionFeedbackRecorder.record(.accurate, for: visit, in: modelContext)
                         viewModel.refresh(places: places, settings: settings)
                         refreshID = UUID()
-                    },
-                    onOpenFeedback: {
+                    } : nil,
+                    onOpenFeedback: settings.predictionFeedbackEnabled ? {
                         visitForFeedback = visit
-                    }
+                    } : nil
                 )
             }
             .buttonStyle(.plain)

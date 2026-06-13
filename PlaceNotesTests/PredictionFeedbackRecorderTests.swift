@@ -5,6 +5,18 @@ import SwiftData
 @MainActor
 final class PredictionFeedbackRecorderTests: XCTestCase {
 
+    override func setUp() {
+        super.setUp()
+        // The recorder no-ops when the feedback feature is disabled (the
+        // shipped default); these tests exercise the enabled behavior.
+        AppSettings.shared.predictionFeedbackEnabled = true
+    }
+
+    override func tearDown() {
+        AppSettings.shared.predictionFeedbackEnabled = false
+        super.tearDown()
+    }
+
     private func makeContext() throws -> ModelContext {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(
