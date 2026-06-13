@@ -37,6 +37,13 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode") }
     }
 
+    /// Master switch for the place-prediction feedback feature (in-app verdict
+    /// UI, local recording, and batched Azure uploads). Disabled for now; flip
+    /// the default below — or the DEBUG toggle in Settings — to re-enable.
+    @Published var predictionFeedbackEnabled: Bool {
+        didSet { UserDefaults.standard.set(predictionFeedbackEnabled, forKey: "predictionFeedbackEnabled") }
+    }
+
     @Published var milestoneVisitCounts: [Int] {
         didSet { UserDefaults.standard.set(milestoneVisitCounts, forKey: "milestoneVisitCounts") }
     }
@@ -111,6 +118,12 @@ final class AppSettings: ObservableObject {
             self.appearanceMode = mode
         } else {
             self.appearanceMode = .system
+        }
+
+        if UserDefaults.standard.object(forKey: "predictionFeedbackEnabled") != nil {
+            self.predictionFeedbackEnabled = UserDefaults.standard.bool(forKey: "predictionFeedbackEnabled")
+        } else {
+            self.predictionFeedbackEnabled = false
         }
 
         if let data = UserDefaults.standard.data(forKey: "trackingState"),

@@ -19,6 +19,11 @@ enum PredictionFeedbackRecorder {
         correctionSource: String? = nil,
         in context: ModelContext
     ) {
+        // Single chokepoint: when the feedback feature is off, no record is
+        // written regardless of which caller invoked this (Logbook verdicts,
+        // the picker, or a place reassignment via AlternativePlacePicker).
+        guard AppSettings.shared.predictionFeedbackEnabled else { return }
+
         let visitID = visit.id
         let descriptor = FetchDescriptor<PredictionFeedback>(
             predicate: #Predicate { $0.visitID == visitID }
