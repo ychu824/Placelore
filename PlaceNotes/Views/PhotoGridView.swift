@@ -5,6 +5,9 @@ struct PhotoGridView: View {
     let photoFilenames: [String]
     var onRemove: ((String) -> Void)?
     var onContextDelete: ((String) -> Void)?
+    /// Supplies date/location metadata used when the full-screen viewer saves
+    /// a photo to the system Photos library.
+    var exportItem: (String) -> PhotoLibraryExporter.Item = { PhotoLibraryExporter.Item(filename: $0) }
 
     @State private var presentedPhoto: PresentedPhoto?
 
@@ -23,7 +26,7 @@ struct PhotoGridView: View {
                 }
             }
             .fullScreenCover(item: $presentedPhoto) { photo in
-                FullScreenPhotoView(filename: photo.id)
+                FullScreenPhotoView(item: exportItem(photo.id))
             }
         }
     }
@@ -81,7 +84,7 @@ private struct PresentedPhoto: Identifiable {
 }
 
 private struct FullScreenPhotoView: View {
-    let filename: String
+    let item: PhotoLibraryExporter.Item
     @Environment(\.dismiss) private var dismiss
     @State private var image: UIImage?
 
@@ -107,8 +110,12 @@ private struct FullScreenPhotoView: View {
             }
             .padding()
         }
-        .task(id: filename) {
-            image = await PhotoStorage.loadImageDetached(filename: filename)
+        .overlay(alignment: .topLeading) {
+            SaveToPhotosButton(item: item)
+                .padding()
+        }
+        .task(id: item.filename) {
+            image = await PhotoStorage.loadImageDetached(filename: item.filename)
         }
     }
 }
@@ -157,6 +164,10 @@ enum PhotoStorage {
             .appendingPathComponent("JournalPhotos", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    static func fileURL(for filename: String) -> URL {
+        photosDirectory.appendingPathComponent(filename)
     }
 
     static func saveImage(_ image: UIImage) -> String? {

@@ -38,6 +38,9 @@ struct SettingsView: View {
     @State private var retentionInputText = ""
     @State private var exportData: Data = Data()
     @State private var showExporter = false
+    @State private var journalPhotoCount: Int = 0
+    @State private var showSaveAllPhotosConfirmation = false
+    @StateObject private var photoSaveModel = PhotoLibrarySaveModel()
     #if DEBUG
     @State private var feedbackExportData: Data = Data()
     @State private var showFeedbackExporter = false
@@ -135,6 +138,27 @@ struct SettingsView: View {
                         Text("Places and visits are stored on-device.")
                     }
                 }
+
+                Section {
+                    LabeledContent("Journal Photos", value: "\(journalPhotoCount)")
+                    Button {
+                        showSaveAllPhotosConfirmation = true
+                    } label: {
+                        HStack {
+                            Text("Save All to Photos")
+                            Spacer()
+                            if photoSaveModel.isSaving {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(journalPhotoCount == 0 || photoSaveModel.isSaving)
+                } header: {
+                    Text("Photos")
+                } footer: {
+                    Text("Copies every journal photo into your iPhone's Photos library, dated to its journal entry and tagged with the place's location.")
+                }
+                .onAppear { refreshJournalPhotoCount() }
 
                 Section {
                     LabeledContent("Samples Collected", value: "\(rawSampleCount)")
@@ -241,6 +265,19 @@ struct SettingsView: View {
             } message: {
                 Text("This will permanently delete all \(places.count) places, \(visitCount) visits, and every raw location sample. This cannot be undone.")
             }
+            .confirmationDialog(
+                "Save \(journalPhotoCount) photos to your Photos library?",
+                isPresented: $showSaveAllPhotosConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Save All to Photos") {
+                    saveAllPhotosToLibrary()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Photos you've saved before will be added again.")
+            }
+            .saveToPhotosAlert(photoSaveModel)
             .alert("Set Minimum Stay", isPresented: $showMinStayInput) {
                 TextField("Minutes", text: $minStayInputText)
                     .keyboardType(.numberPad)
@@ -304,6 +341,17 @@ struct SettingsView: View {
         rawSampleCount = (try? modelContext.fetchCount(FetchDescriptor<RawLocationSample>())) ?? 0
     }
 
+    private func refreshJournalPhotoCount() {
+        let entries = (try? modelContext.fetch(FetchDescriptor<JournalEntry>())) ?? []
+        journalPhotoCount = entries.reduce(0) { $0 + $1.photoAssetIdentifiers.count }
+    }
+
+    private func saveAllPhotosToLibrary() {
+        let descriptor = FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.date)])
+        let entries = (try? modelContext.fetch(descriptor)) ?? []
+        photoSaveModel.save(PhotoLibraryExporter.items(from: entries))
+    }
+
     private func refreshDataCounts() {
         visitCount = (try? modelContext.fetchCount(FetchDescriptor<Visit>())) ?? 0
         refreshStorageSize()
@@ -354,6 +402,7 @@ struct SettingsView: View {
         try? modelContext.delete(model: RawLocationSample.self)
         try? modelContext.save()
         PhotoStorage.deleteAll()
+        refreshJournalPhotoCount()
         refreshRawSampleCount()
         refreshDataCounts()
     }

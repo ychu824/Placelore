@@ -1130,6 +1130,126 @@
           }
         }
       }
+    },
+    "Allow Placelore to add photos in Settings → Placelore → Photos." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请在“设置 → Placelore → 照片”中允许 Placelore 添加照片。"
+          }
+        }
+      }
+    },
+    "There are no photos to save." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有可保存的照片。"
+          }
+        }
+      }
+    },
+    "Saved to Photos" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已存储到“照片”"
+          }
+        }
+      }
+    },
+    "Save to Photos" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储到“照片”"
+          }
+        }
+      }
+    },
+    "1 photo was added to your Photos library." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已将 1 张照片添加到您的照片图库。"
+          }
+        }
+      }
+    },
+    "%lld photos were added to your Photos library." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已将 %lld 张照片添加到您的照片图库。"
+          }
+        }
+      }
+    },
+    "Couldn't Save to Photos" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法存储到“照片”"
+          }
+        }
+      }
+    },
+    "Journal Photos" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "笔记照片"
+          }
+        }
+      }
+    },
+    "Save All to Photos" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部存储到“照片”"
+          }
+        }
+      }
+    },
+    "Copies every journal photo into your iPhone's Photos library, dated to its journal entry and tagged with the place's location." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将所有笔记照片复制到 iPhone 的照片图库，并标注对应笔记的日期和地点位置。"
+          }
+        }
+      }
+    },
+    "Save %lld photos to your Photos library?" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将 %lld 张照片存储到您的照片图库？"
+          }
+        }
+      }
+    },
+    "Photos you've saved before will be added again." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "之前已存储的照片会被再次添加。"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

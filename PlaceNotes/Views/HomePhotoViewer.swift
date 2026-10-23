@@ -1,3 +1,4 @@
+import CoreLocation
 import SwiftUI
 import SwiftData
 
@@ -5,6 +6,7 @@ struct HomePhotoViewer: View {
     let item: HomePhotoItem
     @Binding var pendingPlaceID: PersistentIdentifier?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var image: UIImage?
 
@@ -30,6 +32,10 @@ struct HomePhotoViewer: View {
             }
             .padding()
         }
+        .overlay(alignment: .topLeading) {
+            SaveToPhotosButton(item: exportItem)
+                .padding()
+        }
         .overlay(alignment: .bottom) {
             if let placeID = item.placeID {
                 Button {
@@ -49,5 +55,14 @@ struct HomePhotoViewer: View {
         .task(id: item.filename) {
             image = await PhotoStorage.loadImageDetached(filename: item.filename)
         }
+    }
+
+    private var exportItem: PhotoLibraryExporter.Item {
+        let place = item.placeID.flatMap { modelContext.model(for: $0) as? Place }
+        return PhotoLibraryExporter.Item(
+            filename: item.filename,
+            creationDate: item.date,
+            location: place.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }
+        )
     }
 }
