@@ -1,4 +1,3 @@
-import CoreLocation
 import SwiftUI
 import SwiftData
 
@@ -22,19 +21,21 @@ struct HomePhotoViewer: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .black.opacity(0.5))
+            HStack(spacing: 4) {
+                SaveToPhotosButton(item: exportItem)
+                    .disabled(image == nil)
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.5))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
             }
             .padding()
-        }
-        .overlay(alignment: .topLeading) {
-            SaveToPhotosButton(item: exportItem)
-                .padding()
         }
         .overlay(alignment: .bottom) {
             if let placeID = item.placeID {
@@ -58,11 +59,7 @@ struct HomePhotoViewer: View {
     }
 
     private var exportItem: PhotoLibraryExporter.Item {
-        let place = item.placeID.flatMap { modelContext.model(for: $0) as? Place }
-        return PhotoLibraryExporter.Item(
-            filename: item.filename,
-            creationDate: item.date,
-            location: place.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }
-        )
+        let entries = (modelContext.model(for: item.entryID) as? JournalEntry).map { [$0] } ?? []
+        return PhotoLibraryExporter.item(for: item.filename, in: entries)
     }
 }

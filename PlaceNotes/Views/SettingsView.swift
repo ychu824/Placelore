@@ -40,7 +40,7 @@ struct SettingsView: View {
     @State private var showExporter = false
     @State private var journalPhotoCount: Int = 0
     @State private var showSaveAllPhotosConfirmation = false
-    @StateObject private var photoSaveModel = PhotoLibrarySaveModel()
+    @StateObject private var photoSaveViewModel = PhotoLibrarySaveViewModel()
     #if DEBUG
     @State private var feedbackExportData: Data = Data()
     @State private var showFeedbackExporter = false
@@ -147,16 +147,16 @@ struct SettingsView: View {
                         HStack {
                             Text("Save All to Photos")
                             Spacer()
-                            if photoSaveModel.isSaving {
+                            if photoSaveViewModel.isSaving {
                                 ProgressView()
                             }
                         }
                     }
-                    .disabled(journalPhotoCount == 0 || photoSaveModel.isSaving)
+                    .disabled(journalPhotoCount == 0 || photoSaveViewModel.isSaving)
                 } header: {
                     Text("Photos")
                 } footer: {
-                    Text("Copies every journal photo into your iPhone's Photos library, dated to its journal entry and tagged with the place's location.")
+                    Text("Adds a copy of each journal photo to the Photos app, using its entry's date and place when available.")
                 }
                 .onAppear { refreshJournalPhotoCount() }
 
@@ -244,6 +244,7 @@ struct SettingsView: View {
                     }
                     Button(role: .destructive) {
                         DebugSeed.clearAllData(in: modelContext)
+                        refreshJournalPhotoCount()
                         refreshRawSampleCount()
                         refreshDataCounts()
                     } label: {
@@ -275,9 +276,9 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("Photos you've saved before will be added again.")
+                Text("Photos you've already saved will be duplicated.")
             }
-            .saveToPhotosAlert(photoSaveModel)
+            .saveToPhotosAlert(photoSaveViewModel)
             .alert("Set Minimum Stay", isPresented: $showMinStayInput) {
                 TextField("Minutes", text: $minStayInputText)
                     .keyboardType(.numberPad)
@@ -343,13 +344,13 @@ struct SettingsView: View {
 
     private func refreshJournalPhotoCount() {
         let entries = (try? modelContext.fetch(FetchDescriptor<JournalEntry>())) ?? []
-        journalPhotoCount = entries.reduce(0) { $0 + $1.photoAssetIdentifiers.count }
+        journalPhotoCount = PhotoLibraryExporter.savableItems(from: entries).count
     }
 
     private func saveAllPhotosToLibrary() {
         let descriptor = FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.date)])
         let entries = (try? modelContext.fetch(descriptor)) ?? []
-        photoSaveModel.save(PhotoLibraryExporter.items(from: entries))
+        photoSaveViewModel.save(PhotoLibraryExporter.savableItems(from: entries))
     }
 
     private func refreshDataCounts() {

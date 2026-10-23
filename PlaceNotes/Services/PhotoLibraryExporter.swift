@@ -13,32 +13,44 @@ enum PhotoLibraryExporter {
         var location: CLLocation?
     }
 
+    struct Summary: Equatable {
+        let saved: Int
+        let failed: Int
+    }
+
     enum ExportError: LocalizedError {
         case accessDenied
+        case accessRestricted
         case nothingToSave
+        case saveFailed
 
         var errorDescription: String? {
             switch self {
             case .accessDenied:
                 return String(localized: "Allow Placelore to add photos in Settings → Placelore → Photos.")
+            case .accessRestricted:
+                return String(localized: "Adding photos to your Photos library is restricted on this device.")
             case .nothingToSave:
                 return String(localized: "There are no photos to save.")
+            case .saveFailed:
+                return String(localized: "The photos couldn't be added to your Photos library.")
             }
         }
     }
 
-    /// Keeps each Photos change transaction small so one bad file doesn't
-    /// roll back an entire library-wide export.
     private static let batchSize = 25
 
     /// Builds export items from journal entries, carrying the entry date and
     /// place coordinate so saved photos land at the right spot in the Photos
     /// timeline and map (the stored JPEGs carry no EXIF of their own).
-    /// Duplicate filenames are dropped, keeping the first occurrence.
+    /// The visit's place wins over the entry's because correcting a visit's
+    /// place only updates the visit. Duplicate filenames keep the first one.
     static func items(from entries: [JournalEntry]) -> [Item] {
         var seen = Set<String>()
         return entries.flatMap { entry -> [Item] in
-            let location = (entry.place ?? entry.visit?.place).map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }
+            let location = (entry.visit?.place ?? entry.place).map {
+                CLLocation(latitude: $0.latitude, longitude: $0.longitude)
+            }
             return entry.photoAssetIdentifiers.compactMap { filename in
                 guard seen.insert(filename).inserted else { return nil }
                 return Item(filename: filename, creationDate: entry.date, location: location)
@@ -46,65 +58,85 @@ enum PhotoLibraryExporter {
         }
     }
 
-    /// Metadata for a single photo, falling back to a bare item when no entry
-    /// in `entries` references `filename`.
+    /// Like `items(from:)`, but drops photos whose file is no longer on disk,
+    /// so counts shown to the user match what `save` will actually add.
+    static func savableItems(from entries: [JournalEntry]) -> [Item] {
+        items(from: entries).filter { isOnDisk($0) }
+    }
+
     static func item(for filename: String, in entries: [JournalEntry]) -> Item {
         items(from: entries).first { $0.filename == filename } ?? Item(filename: filename)
     }
 
     /// Saves the given photos to the Photos library, requesting add-only
-    /// access if needed. Returns the number of photos saved. Files missing
-    /// from disk are skipped.
-    @discardableResult
-    static func save(_ items: [Item]) async throws -> Int {
-        let urls = items.compactMap { item -> (Item, URL)? in
-            let url = PhotoStorage.fileURL(for: item.filename)
-            guard FileManager.default.fileExists(atPath: url.path) else {
-                logger.error("Skipping missing photo file \(item.filename, privacy: .public)")
-                return nil
-            }
-            return (item, url)
+    /// access if needed. Files missing from disk and files PhotoKit rejects
+    /// count as failed; the rest are still saved. Throws only when nothing
+    /// could be saved.
+    static func save(_ items: [Item]) async throws -> Summary {
+        let present = items.filter { isOnDisk($0) }
+        let missingCount = items.count - present.count
+        if missingCount > 0 {
+            logger.error("Skipping \(missingCount) photo(s) missing from disk")
         }
-        guard !urls.isEmpty else { throw ExportError.nothingToSave }
+        guard !present.isEmpty else { throw ExportError.nothingToSave }
 
         try await requestAccess()
 
-        var savedCount = 0
-        for start in stride(from: 0, to: urls.count, by: batchSize) {
-            let batch = Array(urls[start..<min(start + batchSize, urls.count)])
+        var saved = 0
+        for start in stride(from: 0, to: present.count, by: batchSize) {
+            let batch = Array(present[start..<min(start + batchSize, present.count)])
             do {
-                try await PHPhotoLibrary.shared().performChanges {
-                    for (item, url) in batch {
-                        let request = PHAssetCreationRequest.forAsset()
-                        request.addResource(with: .photo, fileURL: url, options: nil)
-                        if let creationDate = item.creationDate {
-                            request.creationDate = creationDate
-                        }
-                        if let location = item.location {
-                            request.location = location
-                        }
+                try await performCreation(of: batch)
+                saved += batch.count
+            } catch {
+                // A batch is all-or-nothing; retry singly so one bad file
+                // doesn't take its neighbours in the batch down with it.
+                logger.error("Photos batch failed, retrying singly: \(error.localizedDescription, privacy: .public)")
+                for item in batch {
+                    do {
+                        try await performCreation(of: [item])
+                        saved += 1
+                    } catch {
+                        logger.error("Photos save failed for \(item.filename, privacy: .public): \(error.localizedDescription, privacy: .public)")
                     }
                 }
-            } catch {
-                logger.error("Photos save failed after \(savedCount) of \(urls.count): \(error.localizedDescription, privacy: .public)")
-                throw error
             }
-            savedCount += batch.count
         }
-        return savedCount
+
+        guard saved > 0 else { throw ExportError.saveFailed }
+        return Summary(saved: saved, failed: items.count - saved)
+    }
+
+    private static func isOnDisk(_ item: Item) -> Bool {
+        FileManager.default.fileExists(atPath: PhotoStorage.fileURL(for: item.filename).path)
+    }
+
+    private static func performCreation(of items: [Item]) async throws {
+        let resources = items.map { ($0, PhotoStorage.fileURL(for: $0.filename)) }
+        try await PHPhotoLibrary.shared().performChanges {
+            for (item, url) in resources {
+                let request = PHAssetCreationRequest.forAsset()
+                request.addResource(with: .photo, fileURL: url, options: nil)
+                if let creationDate = item.creationDate {
+                    request.creationDate = creationDate
+                }
+                if let location = item.location {
+                    request.location = location
+                }
+            }
+        }
     }
 
     private static func requestAccess() async throws {
-        let current = PHPhotoLibrary.authorizationStatus(for: .addOnly)
-        let status: PHAuthorizationStatus
-        if current == .notDetermined {
+        var status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+        if status == .notDetermined {
             status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-        } else {
-            status = current
         }
         switch status {
         case .authorized, .limited:
             return
+        case .restricted:
+            throw ExportError.accessRestricted
         default:
             throw ExportError.accessDenied
         }

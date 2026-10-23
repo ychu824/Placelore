@@ -1136,7 +1136,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请在“设置 → Placelore → 照片”中允许 Placelore 添加照片。"
+            "value" : "请在“设置”→ Placelore →“照片”中允许 Placelore 添加照片。"
           }
         }
       }
@@ -1146,7 +1146,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "没有可保存的照片。"
+            "value" : "没有可存储的照片。"
           }
         }
       }
@@ -1171,22 +1171,30 @@
         }
       }
     },
-    "1 photo was added to your Photos library." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已将 1 张照片添加到您的照片图库。"
-          }
-        }
-      }
-    },
     "%lld photos were added to your Photos library." : {
       "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photo was added to your Photos library."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld photos were added to your Photos library."
+                }
+              }
+            }
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已将 %lld 张照片添加到您的照片图库。"
+            "value" : "已将 %lld 张照片添加到“照片”图库。"
           }
         }
       }
@@ -1221,32 +1229,120 @@
         }
       }
     },
-    "Copies every journal photo into your iPhone's Photos library, dated to its journal entry and tagged with the place's location." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "将所有笔记照片复制到 iPhone 的照片图库，并标注对应笔记的日期和地点位置。"
-          }
-        }
-      }
-    },
     "Save %lld photos to your Photos library?" : {
       "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Save %lld photo to your Photos library?"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Save %lld photos to your Photos library?"
+                }
+              }
+            }
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "将 %lld 张照片存储到您的照片图库？"
+            "value" : "要将 %lld 张照片存储到“照片”图库吗？"
           }
         }
       }
     },
-    "Photos you've saved before will be added again." : {
+    "Adding photos to your Photos library is restricted on this device." : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "之前已存储的照片会被再次添加。"
+            "value" : "此设备限制了向“照片”图库添加照片。"
+          }
+        }
+      }
+    },
+    "The photos couldn't be added to your Photos library." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法将照片添加到“照片”图库。"
+          }
+        }
+      }
+    },
+    "Some Photos Weren't Saved" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部分照片未能存储"
+          }
+        }
+      }
+    },
+    "%lld of %lld photos were added to your Photos library." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%2$lld 张照片中有 %1$lld 张已添加到“照片”图库。"
+          }
+        }
+      }
+    },
+    "Adds a copy of each journal photo to the Photos app, using its entry's date and place when available." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将每张笔记照片的副本添加到“照片”App，并尽可能使用对应笔记的日期和地点。"
+          }
+        }
+      }
+    },
+    "Photos you've already saved will be duplicated." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "之前已存储的照片会重复添加。"
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开设置"
+          }
+        }
+      }
+    },
+    "Cancel" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
+    "OK" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好"
           }
         }
       }

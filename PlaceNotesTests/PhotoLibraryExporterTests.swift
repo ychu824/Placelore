@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 import SwiftData
 @testable import PlaceNotes
@@ -55,6 +56,34 @@ final class PhotoLibraryExporterTests: XCTestCase {
 
         XCTAssertEqual(items.map(\.filename), ["a.jpg", "b.jpg"])
         XCTAssertEqual(items.first?.creationDate, Date(timeIntervalSince1970: 100))
+    }
+
+    func testVisitPlaceWinsOverEntryPlace() {
+        let original = Place(name: "Cafe A", latitude: 10, longitude: 20)
+        let corrected = Place(name: "Cafe B", latitude: 30, longitude: 40)
+        context.insert(original)
+        context.insert(corrected)
+        let visit = Visit(arrivalDate: Date(), place: corrected)
+        context.insert(visit)
+        let entry = JournalEntry(photoAssetIdentifiers: ["a.jpg"])
+        context.insert(entry)
+        entry.place = original
+        entry.visit = visit
+
+        let location = PhotoLibraryExporter.items(from: [entry]).first?.location
+
+        XCTAssertEqual(location?.coordinate.latitude, 30)
+        XCTAssertEqual(location?.coordinate.longitude, 40)
+    }
+
+    func testSavableItemsDropFilesMissingFromDisk() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in }
+        let saved = try XCTUnwrap(PhotoStorage.saveImage(image))
+        defer { PhotoStorage.deleteImage(filename: saved) }
+        let entry = JournalEntry(photoAssetIdentifiers: [saved, "missing-\(UUID().uuidString).jpg"])
+        context.insert(entry)
+
+        XCTAssertEqual(PhotoLibraryExporter.savableItems(from: [entry]).map(\.filename), [saved])
     }
 
     func testItemForFilenameFallsBackToBareItem() {

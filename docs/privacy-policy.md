@@ -1,6 +1,6 @@
 # Placelore Privacy Policy
 
-_Last updated: June 13, 2026_
+_Last updated: October 23, 2026_
 
 Placelore ("the app") is an iOS application that helps you keep a personal journal of the places you visit. This policy explains what data the app handles and how.
 
@@ -25,7 +25,7 @@ Placelore accesses the following data **only on your device**:
 ### Photos
 
 - If you attach photos to a journal entry, the app reads the selected images via the system photo picker and stores copies in the app's on-device database alongside your notes.
-- If you choose **Save to Photos**, the app copies those photos into your device's Photos library, along with the journal entry's date and the place's location. It only asks for permission to add photos, not to read your library.
+- If you choose **Save to Photos**, the app copies those photos into your device's Photos library, along with the journal entry's date and the place's location. It only asks for permission to add photos, not to read your library. Those copies, including their location, are then managed by the Photos app and may sync via iCloud Photos if you use it.
 - The app does not upload photos anywhere.
 
 ### Journal entries and place metadata
@@ -56,7 +56,7 @@ Placelore does not transmit your data off your device. It does not sell your dat
 ## Permissions used
 
 - **Location (When In Use / Always):** required to detect arrivals, departures, and dwell time at places. The "Always" authorization is what enables passive logging while the app is in the background.
-- **Photo Library:** required only when you choose to attach a photo to a journal entry, or (add-only access) when you choose to save photos to your Photos library.
+- **Photo Library (add-only):** requested only when you choose Save to Photos. Attaching photos to a journal entry uses the system photo picker, which doesn't require library access.
 - **Camera** _(if applicable in your build):_ required only if you choose to take a photo from within the app.
 
 You can revoke any of these permissions at any time in the iOS Settings app.

@@ -4,26 +4,32 @@ import SwiftUI
 /// into the system Photos library.
 struct SaveToPhotosButton: View {
     let item: PhotoLibraryExporter.Item
-    @StateObject private var model = PhotoLibrarySaveModel()
+    @StateObject private var viewModel = PhotoLibrarySaveViewModel()
 
     var body: some View {
         Button {
-            model.save([item], announcesSuccess: false)
+            viewModel.save([item], announcesSuccess: false)
         } label: {
             icon
                 .font(.title)
-                .frame(width: 36, height: 36)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
-        .disabled(model.status != .idle)
-        .accessibilityLabel(model.status == .saved ? Text("Saved to Photos") : Text("Save to Photos"))
-        .saveToPhotosAlert(model)
+        .disabled(viewModel.status != .idle)
+        .accessibilityLabel(viewModel.status == .saved ? Text("Saved to Photos") : Text("Save to Photos"))
+        .onChange(of: viewModel.status) { _, status in
+            if status == .saved {
+                AccessibilityNotification.Announcement(String(localized: "Saved to Photos")).post()
+            }
+        }
+        .saveToPhotosAlert(viewModel)
     }
 
     @ViewBuilder
     private var icon: some View {
-        switch model.status {
+        switch viewModel.status {
         case .idle:
-            Image(systemName: "square.and.arrow.down.fill")
+            Image(systemName: "arrow.down.circle.fill")
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(.white, .black.opacity(0.5))
         case .saving:
@@ -37,24 +43,24 @@ struct SaveToPhotosButton: View {
 }
 
 extension View {
-    func saveToPhotosAlert(_ model: PhotoLibrarySaveModel) -> some View {
-        modifier(SaveToPhotosAlertModifier(model: model))
+    func saveToPhotosAlert(_ viewModel: PhotoLibrarySaveViewModel) -> some View {
+        modifier(SaveToPhotosAlertModifier(viewModel: viewModel))
     }
 }
 
 private struct SaveToPhotosAlertModifier: ViewModifier {
-    @ObservedObject var model: PhotoLibrarySaveModel
+    @ObservedObject var viewModel: PhotoLibrarySaveViewModel
 
     func body(content: Content) -> some View {
         content.alert(
-            model.outcome?.title ?? "",
+            viewModel.outcome?.title ?? "",
             isPresented: Binding(
-                get: { model.outcome != nil },
-                set: { if !$0 { model.outcome = nil } }
+                get: { viewModel.outcome != nil },
+                set: { if !$0 { viewModel.outcome = nil } }
             ),
-            presenting: model.outcome
+            presenting: viewModel.outcome
         ) { outcome in
-            if outcome.isAccessDenied {
+            if outcome.offersSettings {
                 Button("Open Settings") {
                     if let url = URL(string: UIApplication.openSettingsURLString) {
                         UIApplication.shared.open(url)

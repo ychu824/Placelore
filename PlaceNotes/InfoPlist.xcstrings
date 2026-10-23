@@ -88,7 +88,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "当您选择“存储到照片”时，Placelore 会将您的笔记照片存储到照片图库。"
+            "value" : "当您选择“存储到‘照片’”时，Placelore 会将您的笔记照片添加到“照片”图库。"
           }
         }
       }
