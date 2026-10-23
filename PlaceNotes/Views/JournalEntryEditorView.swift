@@ -12,7 +12,8 @@ struct JournalEntryEditorView: View {
     @State private var title: String = ""
     @State private var bodyText: String = ""
     @State private var entryDate: Date = Date()
-    @State private var photoFilenames: [String] = []
+    @State private var photoSession = JournalPhotoEditSession()
+    @State private var didSave = false
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var isLoadingPhotos = false
 
@@ -45,10 +46,11 @@ struct JournalEntryEditorView: View {
                         }
 
                         PhotoGridView(
-                            photoFilenames: photoFilenames,
+                            photoFilenames: photoSession.filenames,
                             onRemove: { filename in
-                                photoFilenames.removeAll { $0 == filename }
-                                PhotoStorage.deleteImage(filename: filename)
+                                for orphan in photoSession.remove(filename) {
+                                    PhotoStorage.deleteImage(filename: orphan)
+                                }
                             }
                         )
                     }
@@ -91,7 +93,7 @@ struct JournalEntryEditorView: View {
                         saveEntry()
                         dismiss()
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty && bodyText.trimmingCharacters(in: .whitespaces).isEmpty && photoFilenames.isEmpty)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty && bodyText.trimmingCharacters(in: .whitespaces).isEmpty && photoSession.filenames.isEmpty)
                 }
             }
             .onChange(of: selectedItems) { _, newItems in
@@ -104,7 +106,14 @@ struct JournalEntryEditorView: View {
                     title = entry.title
                     bodyText = entry.body
                     entryDate = entry.date
-                    photoFilenames = entry.photoAssetIdentifiers
+                    photoSession = JournalPhotoEditSession(original: entry.photoAssetIdentifiers)
+                }
+            }
+            // Covers Cancel and swipe-to-dismiss alike.
+            .onDisappear {
+                guard !didSave else { return }
+                for filename in photoSession.filesToDeleteOnDiscard {
+                    PhotoStorage.deleteImage(filename: filename)
                 }
             }
         }
@@ -118,7 +127,7 @@ struct JournalEntryEditorView: View {
             if let data = try? await item.loadTransferable(type: Data.self),
                let uiImage = UIImage(data: data),
                let filename = PhotoStorage.saveImage(uiImage) {
-                photoFilenames.append(filename)
+                photoSession.add(filename)
             }
         }
 
@@ -130,10 +139,9 @@ struct JournalEntryEditorView: View {
         let trimmedTitle = title.trimmingCharacters(in: .whitespaces)
         let trimmedBody = bodyText.trimmingCharacters(in: .whitespaces)
 
+        let photoFilenames = photoSession.filenames
         if let entry = existingEntry {
-            // Delete removed photos from disk
-            let removed = Set(entry.photoAssetIdentifiers).subtracting(photoFilenames)
-            for filename in removed {
+            for filename in photoSession.filesToDeleteOnSave {
                 PhotoStorage.deleteImage(filename: filename)
             }
             entry.title = trimmedTitle
@@ -154,5 +162,6 @@ struct JournalEntryEditorView: View {
             modelContext.insert(entry)
         }
         try? modelContext.save()
+        didSave = true
     }
 }
