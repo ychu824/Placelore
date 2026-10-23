@@ -5,6 +5,7 @@ struct HomePhotoViewer: View {
     let item: HomePhotoItem
     @Binding var pendingPlaceID: PersistentIdentifier?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
 
     @State private var image: UIImage?
 
@@ -20,13 +21,19 @@ struct HomePhotoViewer: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .black.opacity(0.5))
+            HStack(spacing: 4) {
+                SaveToPhotosButton(item: exportItem)
+                    .disabled(image == nil)
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.5))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
             }
             .padding()
         }
@@ -49,5 +56,10 @@ struct HomePhotoViewer: View {
         .task(id: item.filename) {
             image = await PhotoStorage.loadImageDetached(filename: item.filename)
         }
+    }
+
+    private var exportItem: PhotoLibraryExporter.Item {
+        let entries = (modelContext.model(for: item.entryID) as? JournalEntry).map { [$0] } ?? []
+        return PhotoLibraryExporter.item(for: item.filename, in: entries)
     }
 }

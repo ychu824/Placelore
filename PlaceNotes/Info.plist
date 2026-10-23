@@ -39,6 +39,8 @@
     <string>Placelore uses your current location to log the place you are visiting and attach it to your notes.</string>
     <key>NSCameraUsageDescription</key>
     <string>Placelore uses the camera to attach photos to your visits and journal entries for a place.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Placelore saves your journal photos to your Photos library when you choose Save to Photos.</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>NSSupportsLiveActivities</key>
