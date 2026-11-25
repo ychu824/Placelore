@@ -75,6 +75,23 @@
           }
         }
       }
+    },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "comment" : "Privacy - Photo Library Additions Usage Description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Placelore saves your journal photos to your Photos library when you choose Save to Photos."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当您选择“存储到‘照片’”时，Placelore 会将您的笔记照片添加到“照片”图库。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

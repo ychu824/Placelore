@@ -5,6 +5,7 @@ struct PhotoGridView: View {
     let photoFilenames: [String]
     var onRemove: ((String) -> Void)?
     var onContextDelete: ((String) -> Void)?
+    var makeExportItem: (String) -> PhotoLibraryExporter.Item = { PhotoLibraryExporter.Item(filename: $0) }
 
     @State private var presentedPhoto: PresentedPhoto?
 
@@ -23,7 +24,7 @@ struct PhotoGridView: View {
                 }
             }
             .fullScreenCover(item: $presentedPhoto) { photo in
-                FullScreenPhotoView(filename: photo.id)
+                FullScreenPhotoView(item: makeExportItem(photo.id))
             }
         }
     }
@@ -81,7 +82,7 @@ private struct PresentedPhoto: Identifiable {
 }
 
 private struct FullScreenPhotoView: View {
-    let filename: String
+    let item: PhotoLibraryExporter.Item
     @Environment(\.dismiss) private var dismiss
     @State private var image: UIImage?
 
@@ -97,18 +98,24 @@ private struct FullScreenPhotoView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.title)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .black.opacity(0.5))
+            HStack(spacing: 4) {
+                SaveToPhotosButton(item: item)
+                    .disabled(image == nil)
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title)
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.5))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
             }
             .padding()
         }
-        .task(id: filename) {
-            image = await PhotoStorage.loadImageDetached(filename: filename)
+        .task(id: item.filename) {
+            image = await PhotoStorage.loadImageDetached(filename: item.filename)
         }
     }
 }
@@ -157,6 +164,10 @@ enum PhotoStorage {
             .appendingPathComponent("JournalPhotos", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    static func fileURL(for filename: String) -> URL {
+        photosDirectory.appendingPathComponent(filename)
     }
 
     static func saveImage(_ image: UIImage) -> String? {

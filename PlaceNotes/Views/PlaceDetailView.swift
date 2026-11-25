@@ -166,7 +166,10 @@ struct PlaceDetailView: View {
                     .foregroundStyle(.secondary)
             }
 
-            PhotoGridView(photoFilenames: allPhotoFilenames)
+            PhotoGridView(
+                photoFilenames: allPhotoFilenames,
+                makeExportItem: { PhotoLibraryExporter.item(for: $0, in: place.journalEntries) }
+            )
         }
     }
 
@@ -235,7 +238,8 @@ struct JournalEntryCard: View {
                     onContextDelete: { filename in
                         pendingPhotoDelete = filename
                         showPhotoDeleteAlert = true
-                    }
+                    },
+                    makeExportItem: { PhotoLibraryExporter.item(for: $0, in: [entry]) }
                 )
             }
 

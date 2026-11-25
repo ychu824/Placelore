@@ -181,7 +181,7 @@ struct AlternativePlacePicker: View {
             modelContext.insert(newPlace)
         }
 
-        visit.place = newPlace
+        visit.movePlace(to: newPlace)
         visit.placeConfirmed = true
 
         var remaining = visit.alternativePlaces.filter { $0.id != candidate.id }

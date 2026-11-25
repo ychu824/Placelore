@@ -113,6 +113,16 @@ final class Visit {
         self.departureDate = departureDate
         self.place = place
     }
+
+    /// Reassigns the visit and carries its journal entries along. Entries left
+    /// on the old place would show up there and be cascade-deleted with it.
+    func movePlace(to newPlace: Place) {
+        let previous = place
+        place = newPlace
+        for entry in journalEntries where entry.place == nil || entry.place?.id == previous?.id {
+            entry.place = newPlace
+        }
+    }
 }
 
 enum TimeOfDay: String, CaseIterable, Codable {

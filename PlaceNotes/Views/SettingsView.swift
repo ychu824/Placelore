@@ -38,6 +38,9 @@ struct SettingsView: View {
     @State private var retentionInputText = ""
     @State private var exportData: Data = Data()
     @State private var showExporter = false
+    @State private var journalPhotoCount: Int = 0
+    @State private var showSaveAllPhotosConfirmation = false
+    @StateObject private var photoSaveViewModel = PhotoLibrarySaveViewModel()
     #if DEBUG
     @State private var feedbackExportData: Data = Data()
     @State private var showFeedbackExporter = false
@@ -137,6 +140,27 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    LabeledContent("Journal Photos", value: "\(journalPhotoCount)")
+                    Button {
+                        showSaveAllPhotosConfirmation = true
+                    } label: {
+                        HStack {
+                            Text("Save All to Photos")
+                            Spacer()
+                            if photoSaveViewModel.isSaving {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(journalPhotoCount == 0 || photoSaveViewModel.isSaving)
+                } header: {
+                    Text("Photos")
+                } footer: {
+                    Text("Adds a copy of each journal photo to the Photos app, using its entry's date and place when available.")
+                }
+                .onAppear { refreshJournalPhotoCount() }
+
+                Section {
                     LabeledContent("Samples Collected", value: "\(rawSampleCount)")
                     Button {
                         retentionInputText = "\(settings.rawLocationRetentionDays)"
@@ -220,6 +244,7 @@ struct SettingsView: View {
                     }
                     Button(role: .destructive) {
                         DebugSeed.clearAllData(in: modelContext)
+                        refreshJournalPhotoCount()
                         refreshRawSampleCount()
                         refreshDataCounts()
                     } label: {
@@ -241,6 +266,19 @@ struct SettingsView: View {
             } message: {
                 Text("This will permanently delete all \(places.count) places, \(visitCount) visits, and every raw location sample. This cannot be undone.")
             }
+            .confirmationDialog(
+                "Save \(journalPhotoCount) photos to your Photos library?",
+                isPresented: $showSaveAllPhotosConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Save All to Photos") {
+                    saveAllPhotosToLibrary()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Photos you've already saved will be duplicated.")
+            }
+            .saveToPhotosAlert(photoSaveViewModel)
             .alert("Set Minimum Stay", isPresented: $showMinStayInput) {
                 TextField("Minutes", text: $minStayInputText)
                     .keyboardType(.numberPad)
@@ -304,6 +342,17 @@ struct SettingsView: View {
         rawSampleCount = (try? modelContext.fetchCount(FetchDescriptor<RawLocationSample>())) ?? 0
     }
 
+    private func refreshJournalPhotoCount() {
+        let entries = (try? modelContext.fetch(FetchDescriptor<JournalEntry>())) ?? []
+        journalPhotoCount = PhotoLibraryExporter.savableItems(from: entries).count
+    }
+
+    private func saveAllPhotosToLibrary() {
+        let descriptor = FetchDescriptor<JournalEntry>(sortBy: [SortDescriptor(\.date)])
+        let entries = (try? modelContext.fetch(descriptor)) ?? []
+        photoSaveViewModel.save(PhotoLibraryExporter.savableItems(from: entries))
+    }
+
     private func refreshDataCounts() {
         visitCount = (try? modelContext.fetchCount(FetchDescriptor<Visit>())) ?? 0
         refreshStorageSize()
@@ -354,6 +403,7 @@ struct SettingsView: View {
         try? modelContext.delete(model: RawLocationSample.self)
         try? modelContext.save()
         PhotoStorage.deleteAll()
+        refreshJournalPhotoCount()
         refreshRawSampleCount()
         refreshDataCounts()
     }
