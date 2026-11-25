@@ -134,6 +134,10 @@ struct PhotoThumbnailView: View {
                 }
             }
             .clipped()
+            // clipped() only trims drawing. Without this, a scaledToFill
+            // image's overflow still takes taps meant for the neighbouring
+            // cell, e.g. the editor's remove button on the left column.
+            .contentShape(Rectangle())
             .task(id: filename) {
                 // Downsampled + cached decode off the main actor — a full-res
                 // synchronous `loadImage` per grid cell stalls scrolling and
